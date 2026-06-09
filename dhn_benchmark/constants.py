@@ -176,12 +176,12 @@ DN_BY_GEN_LEVEL = {
         "transmission" : [100, 125, 150, 200, 250, 300],
     },
     "4G": {
-        "building"     : [20, 25],
+        "building"     : [20],
         "distribution" : [50, 65, 80, 100, 125],
         "transmission" : [125, 150, 200, 250],
     },
     "5G": {
-        "building"     : [25, 32, 40],
+        "building"     : [35],
         "distribution" : [80, 100, 125, 150, 200],
         "transmission" : [200, 250, 300],
     },

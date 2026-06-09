@@ -3,9 +3,6 @@
 # Exports all physical and engineering parameters from constants.py
 # to a single readable CSV file: data/parameters.csv
 #
-# The CSV is structured in labelled sections so it can be read by
-# anyone: Python, Matlab, Excel, or manually in Modelica.
-#
 # Usage:
 #   python export_constants.py
 # Output:
@@ -52,7 +49,7 @@ def main():
     rows.append(["parameter", "generation", "value", "unit", "description"])
 
     fluid_params = [
-        ("rho",  "3G", RHO_WATER_3G, "kg/m3",   "Water density at 80 deg C"),
+        ("rho",  "3G", RHO_WATER_3G, "kg/m3",    "Water density at 80 deg C"),
         ("cp",   "3G", CP_WATER_3G,  "J/(kg·K)", "Water specific heat at 80 deg C"),
         ("mu",   "3G", MU_WATER_3G,  "Pa·s",     "Water dynamic viscosity at 80 deg C"),
         ("rho",  "4G", RHO_WATER_4G, "kg/m3",    "Water density at 60 deg C"),
@@ -68,7 +65,7 @@ def main():
     # ------------------------------------------------------------------
     # 2. Soil and installation
     # ------------------------------------------------------------------
-    section("SOIL AND INSTALLATION (EN 13941)")
+    section("SOIL AND INSTALLATION")
     rows.append(["parameter", "generation", "value", "unit", "description"])
 
     rows.append(["lambda_soil",  "-", LAMBDA_SOIL,  "W/(m·K)", "Soil thermal conductivity"])
@@ -78,7 +75,7 @@ def main():
     # ------------------------------------------------------------------
     # 3. Steel carrier pipe material
     # ------------------------------------------------------------------
-    section("STEEL CARRIER PIPE MATERIAL (P235GH, EN 10217-2)")
+    section("STEEL CARRIER PIPE MATERIAL")
     rows.append(["parameter", "generation", "value", "unit", "description"])
 
     rows.append(["lambda_steel",    "3G/4G", LAMBDA_STEEL,    "W/(m·K)", "Thermal conductivity"])
@@ -89,7 +86,7 @@ def main():
     # ------------------------------------------------------------------
     # 4. Plastic pipe material
     # ------------------------------------------------------------------
-    section("PLASTIC CARRIER PIPE MATERIAL (PEX/PERT/HDPE, EN ISO 15875)")
+    section("PLASTIC CARRIER PIPE MATERIAL")
     rows.append(["parameter", "generation", "value", "unit", "description"])
 
     rows.append(["lambda_pex",    "4G/5G", LAMBDA_PEX,    "W/(m·K)", "PEX thermal conductivity"])
@@ -99,7 +96,7 @@ def main():
     # ------------------------------------------------------------------
     # 5. PUR insulation
     # ------------------------------------------------------------------
-    section("PUR FOAM INSULATION (EN 253:2019, series 1)")
+    section("PUR FOAM INSULATION")
     rows.append(["parameter", "generation", "value", "unit", "description"])
 
     rows.append(["lambda_pur", "-", LAMBDA_PUR, "W/(m·K)",
@@ -108,25 +105,23 @@ def main():
     # ------------------------------------------------------------------
     # 6. Pipe catalogue
     # ------------------------------------------------------------------
-    section("PIPE CATALOGUE - EN 253:2019 SERIES 1 + EN 10220:2002")
+    section("PIPE CATALOGUE")
     rows.append(["DN", "d_inner_m", "d_outer_m", "wall_thickness_m",
-                 "d_casing_m", "d_inner_mm", "d_outer_mm", "d_casing_mm",
-                 "source"])
+                 "d_casing_m", "d_inner_mm", "d_outer_mm", "d_casing_mm"])
 
     for dn, (di, do, s, dc) in sorted(PIPE_CATALOGUE.items()):
         rows.append([
             dn,
             di, do, s, dc,
-            round(di * 1000, 2),   # mm for readability
+            round(di * 1000, 2),   # mm
             round(do * 1000, 2),
             round(dc * 1000, 2),
-            "EN10220+EN253:2019 Tab.A.1 series 1",
         ])
 
     # ------------------------------------------------------------------
     # 7. Generation operating parameters
     # ------------------------------------------------------------------
-    section("GENERATION OPERATING PARAMETERS (Table 1, paper_v2)")
+    section("GENERATION OPERATING PARAMETERS")
     rows.append(["parameter", "generation", "value", "unit", "description"])
 
     param_meta = {
@@ -150,7 +145,7 @@ def main():
     # ------------------------------------------------------------------
     # 8. DN by generation and grid level
     # ------------------------------------------------------------------
-    section("ELIGIBLE DN BY GENERATION AND GRID LEVEL (Table 1, paper_v2)")
+    section("ELIGIBLE DN BY GENERATION AND GRID LEVEL")
     rows.append(["generation", "grid_level", "DN_list", "unit", "description"])
 
     for gen, levels in DN_BY_GEN_LEVEL.items():
@@ -158,7 +153,7 @@ def main():
             rows.append([
                 gen,
                 level,
-                str(dn_list),   # e.g. "[20, 25, 32]"
+                str(dn_list),
                 "mm",
                 f"Eligible nominal diameters for {gen} {level} pipes",
             ])
@@ -171,7 +166,6 @@ def main():
         writer.writerows(rows)
 
     print(f"Exported: {OUTPUT_PATH}")
-    print(f"  Rows written: {len(rows)}")
 
 
 if __name__ == "__main__":
