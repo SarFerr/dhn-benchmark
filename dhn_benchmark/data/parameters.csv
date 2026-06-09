@@ -1,5 +1,6 @@
-
-# FLUID PROPERTIES,,,
+,,,,
+##########,FLUID PROPERTIES,##########,,
+,,,,
 parameter,generation,value,unit,description
 rho,3G,971.8,kg/m3,Water density at 80 deg C
 cp,3G,4195.0,J/(kg·K),Water specific heat at 80 deg C
@@ -10,31 +11,36 @@ mu,4G,0.000467,Pa·s,Water dynamic viscosity at 60 deg C
 rho,5G,999.1,kg/m3,Water density at 15 deg C
 cp,5G,4186.0,J/(kg·K),Water specific heat at 15 deg C
 mu,5G,0.00114,Pa·s,Water dynamic viscosity at 15 deg C
-
-# SOIL AND INSTALLATION (EN 13941),,,
+,,,,
+##########,SOIL AND INSTALLATION (EN 13941),##########,,
+,,,,
 parameter,generation,value,unit,description
 lambda_soil,-,1.5,W/(m·K),Soil thermal conductivity
 T_ground,-,10.0,deg C,Undisturbed soil temperature
 burial_depth,-,0.8,m,Pipe axis depth from ground level
-
-"# STEEL CARRIER PIPE MATERIAL (P235GH, EN 10217-2)",,,
+,,,,
+##########,"STEEL CARRIER PIPE MATERIAL (P235GH, EN 10217-2)",##########,,
+,,,,
 parameter,generation,value,unit,description
 lambda_steel,3G/4G,50.0,W/(m·K),Thermal conductivity
 roughness_steel,3G/4G,4.5e-05,m,Absolute roughness (Darcy-Weisbach)
 E_steel,3G/4G,210000000000.0,Pa,Young's modulus
 alpha_steel,3G/4G,1.2e-05,1/K,Linear thermal expansion coefficient
-
-"# PLASTIC CARRIER PIPE MATERIAL (PEX/PERT/HDPE, EN ISO 15875)",,,
+,,,,
+##########,"PLASTIC CARRIER PIPE MATERIAL (PEX/PERT/HDPE, EN ISO 15875)",##########,,
+,,,,
 parameter,generation,value,unit,description
 lambda_pex,4G/5G,0.38,W/(m·K),PEX thermal conductivity
 roughness_pex,4G/5G,7e-06,m,PEX absolute roughness
 lambda_hdpe,5G,0.42,W/(m·K),HDPE casing thermal conductivity
-
-"# PUR FOAM INSULATION (EN 253:2019, series 1)",,,
+,,,,
+##########,"PUR FOAM INSULATION (EN 253:2019, series 1)",##########,,
+,,,,
 parameter,generation,value,unit,description
 lambda_pur,-,0.033,W/(m·K),Aged design value at 50 deg C (EN 253 max = 0.033)
-
-# PIPE CATALOGUE - EN 253:2019 SERIES 1 + EN 10220:2002,,,
+,,,,
+##########,PIPE CATALOGUE - EN 253:2019 SERIES 1 + EN 10220:2002,##########,,
+,,,,
 DN,d_inner_m,d_outer_m,wall_thickness_m,d_casing_m,d_inner_mm,d_outer_mm,d_casing_mm,source
 20,0.0214,0.0269,0.0026,0.09,21.4,26.9,90.0,EN10220+EN253:2019 Tab.A.1 series 1
 25,0.0282,0.0337,0.0026,0.09,28.2,33.7,90.0,EN10220+EN253:2019 Tab.A.1 series 1
@@ -49,8 +55,9 @@ DN,d_inner_m,d_outer_m,wall_thickness_m,d_casing_m,d_inner_mm,d_outer_mm,d_casin
 200,0.2066,0.2191,0.0063,0.315,206.6,219.1,315.0,EN10220+EN253:2019 Tab.A.1 series 1
 250,0.2606,0.273,0.0063,0.4,260.6,273.0,400.0,EN10220+EN253:2019 Tab.A.1 series 1
 300,0.3097,0.3239,0.0071,0.45,309.7,323.9,450.0,EN10220+EN253:2019 Tab.A.1 series 1
-
-"# GENERATION OPERATING PARAMETERS (Table 1, paper_v2)",,,
+,,,,
+##########,"GENERATION OPERATING PARAMETERS (Table 1, paper_v2)",##########,,
+,,,,
 parameter,generation,value,unit,description
 T_supply_nom,3G,80.0,deg C,Nominal supply temperature
 delta_T_nom,3G,30.0,K,Design temperature differential supply-return
@@ -82,8 +89,9 @@ carrier_mat,5G,hdpe,-,Carrier pipe material
 rho,5G,999.1,kg/m3,Water density at nominal temperature
 cp,5G,4186.0,J/(kg·K),Water specific heat at nominal temperature
 mu,5G,0.00114,Pa·s,Water dynamic viscosity at nominal temperature
-
-"# ELIGIBLE DN BY GENERATION AND GRID LEVEL (Table 1, paper_v2)",,,
+,,,,
+##########,"ELIGIBLE DN BY GENERATION AND GRID LEVEL (Table 1, paper_v2)",##########,,
+,,,,
 generation,grid_level,DN_list,unit,description
 3G,building,[20],mm,Eligible nominal diameters for 3G building pipes
 3G,distribution,"[40, 50, 65, 80, 100]",mm,Eligible nominal diameters for 3G distribution pipes
