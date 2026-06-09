@@ -39,9 +39,7 @@ def main():
     # Helper: section separator
     # ------------------------------------------------------------------
     def section(title):
-        rows.append(["", "", "", "", ""])
-        rows.append(["# " + title, "", "", "", ""])
-        rows.append(["", "", "", "", ""])
+        rows.append(["# " + title, "", "", "", "", "", "", ""])
 
     # ------------------------------------------------------------------
     # 1. Fluid properties
