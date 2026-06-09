@@ -39,8 +39,9 @@ def main():
     # Helper: section separator
     # ------------------------------------------------------------------
     def section(title):
-        rows.append([])
-        rows.append(["# " + title, "", "", ""])
+        rows.append(["", "", "", "", ""])
+        rows.append(["# " + title, "", "", "", ""])
+        rows.append(["", "", "", "", ""])
 
     # ------------------------------------------------------------------
     # 1. Fluid properties
@@ -153,7 +154,7 @@ def main():
             rows.append([
                 gen,
                 level,
-                dn_list[0] if len(dn_list) == 1 else " | ".join(str(dn) for dn in dn_list),
+                str(dn_list),
                 "mm",
                 f"Eligible nominal diameters for {gen} {level} pipes",
             ])
