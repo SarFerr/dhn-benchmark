@@ -85,12 +85,12 @@ mu,5G,0.00114,Pa·s,Water dynamic viscosity at nominal temperature
 
 # ELIGIBLE DN BY GENERATION AND GRID LEVEL,,,
 generation,grid_level,DN_list,unit,description
-3G,building,[20],mm,Eligible nominal diameters for 3G building pipes
-3G,distribution,"[40, 50, 65, 80, 100]",mm,Eligible nominal diameters for 3G distribution pipes
-3G,transmission,"[100, 125, 150, 200, 250, 300]",mm,Eligible nominal diameters for 3G transmission pipes
-4G,building,[20],mm,Eligible nominal diameters for 4G building pipes
-4G,distribution,"[50, 65, 80, 100, 125]",mm,Eligible nominal diameters for 4G distribution pipes
-4G,transmission,"[125, 150, 200, 250]",mm,Eligible nominal diameters for 4G transmission pipes
-5G,building,[35],mm,Eligible nominal diameters for 5G building pipes
-5G,distribution,"[80, 100, 125, 150, 200]",mm,Eligible nominal diameters for 5G distribution pipes
-5G,transmission,"[200, 250, 300]",mm,Eligible nominal diameters for 5G transmission pipes
+3G,building,20,mm,Eligible nominal diameters for 3G building pipes
+3G,distribution,40 | 50 | 65 | 80 | 100,mm,Eligible nominal diameters for 3G distribution pipes
+3G,transmission,100 | 125 | 150 | 200 | 250 | 300,mm,Eligible nominal diameters for 3G transmission pipes
+4G,building,20,mm,Eligible nominal diameters for 4G building pipes
+4G,distribution,50 | 65 | 80 | 100 | 125,mm,Eligible nominal diameters for 4G distribution pipes
+4G,transmission,125 | 150 | 200 | 250,mm,Eligible nominal diameters for 4G transmission pipes
+5G,building,35,mm,Eligible nominal diameters for 5G building pipes
+5G,distribution,80 | 100 | 125 | 150 | 200,mm,Eligible nominal diameters for 5G distribution pipes
+5G,transmission,200 | 250 | 300,mm,Eligible nominal diameters for 5G transmission pipes

@@ -153,7 +153,7 @@ def main():
             rows.append([
                 gen,
                 level,
-                str(dn_list),
+                dn_list[0] if len(dn_list) == 1 else " | ".join(str(dn) for dn in dn_list),
                 "mm",
                 f"Eligible nominal diameters for {gen} {level} pipes",
             ])
