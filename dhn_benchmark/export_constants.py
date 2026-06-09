@@ -40,13 +40,10 @@ def main():
 
     # ------------------------------------------------------------------
     # Helper: section separator
-    # Columns: parameter | generation | value | unit | description
-    # Total: always 5 columns in every row
     # ------------------------------------------------------------------
     def section(title):
-        rows.append(["", "", "", "", ""])
-        rows.append(["##########", title, "##########", "", ""])
-        rows.append(["", "", "", "", ""])
+        rows.append([])
+        rows.append(["# " + title, "", "", ""])
 
     # ------------------------------------------------------------------
     # 1. Fluid properties
