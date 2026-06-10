@@ -86,6 +86,7 @@ DAILY_SHAPE = _build_daily_shape()
 # Weekly profile — 1008 values (7 × daily, uniform)
 # ---------------------------------------------------------------------------
 WEEKLY_SHAPE = DAILY_SHAPE * 7
+WEEKLY_DEMAND_W = [round(f * Q_PEAK_W, 1) for f in WEEKLY_SHAPE]
 
 # ---------------------------------------------------------------------------
 # Timestep metadata helpers
@@ -111,6 +112,44 @@ def timestep_labels():
 # ---------------------------------------------------------------------------
 assert len(DAILY_SHAPE)  == N_DAY,  f"Expected {N_DAY}, got {len(DAILY_SHAPE)}"
 assert len(WEEKLY_SHAPE) == N_WEEK, f"Expected {N_WEEK}, got {len(WEEKLY_SHAPE)}"
+assert len(WEEKLY_DEMAND_W) == N_WEEK
+assert max(WEEKLY_DEMAND_W) == Q_PEAK_W
 assert max(DAILY_SHAPE)  == F_PEAK
 assert DAILY_SHAPE[0]    == F_OFF   # midnight = shutdown
 assert DAILY_SHAPE[42]   == F_PEAK  # t=42 → h=07:00 = peak
+
+# ---------------------------------------------------------------------------
+# CSV export — run once, shared across all archetypes
+# ---------------------------------------------------------------------------
+def export_csv(out_path="data/demand_profile.csv"):
+    """
+    Export the weekly demand profile to CSV.
+    """
+    import csv
+    import os
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+
+    labels = timestep_labels()
+    with open(out_path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow([
+            "timestep",
+            "label",
+            "f_normalised",
+            "Q_W",
+        ])
+        for t in range(N_WEEK):
+            w.writerow([
+                t,
+                labels[t],
+                WEEKLY_SHAPE[t],
+                WEEKLY_DEMAND_W[t],
+                round(WEEKLY_DEMAND_W[t] / 1000, 3),
+            ])
+    print(f"demand_profile.csv exported → {out_path}")
+    print(f"  timesteps : {N_WEEK}  (Δt={DT_MIN} min, 7 days)")
+    print(f"  Q_peak    : {Q_PEAK_W/1000:.0f} kW")
+
+
+if __name__ == "__main__":
+    export_csv()
