@@ -1,4 +1,4 @@
-node_id,node_type,x,y,circuit,Q_substations_W,p_pump_set_bar,T_supply_set_degC,delta_T_nom_K
+node_id,node_type,x_m,y_m,circuit,Q_substations_W,p_pump_set_bar,T_supply_set_degC,delta_T_nom_K
 src_s,source,0,0,supply,,10.0,80.0,
 src_r,source,0,0,return,,,,
 a_s,junction,0,300,supply,,,,
