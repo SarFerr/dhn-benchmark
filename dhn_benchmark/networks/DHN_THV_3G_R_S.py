@@ -2,7 +2,7 @@
 #
 # Benchmark archetype: Thermo-Hydraulic Validation, 3GDH, Radial, Small
 #
-# Methodology I — Purpose-driven design (paper_v2, Section 6.2)
+# Methodology I — Purpose-driven design
 #   Rule 1: exactly 10 substations
 #   Rule 2: pipe lengths sampled from U[100, 200] m, seed=42
 #   Rule 3: radial tree topology, depth 3, no loops (L=0)
@@ -60,7 +60,7 @@ from dhn_benchmark.plotting import plot_topology
 
 # ---------------------------------------------------------------------------
 # SECTION 1 — PIPE LENGTHS
-# Sampled from U[100, 200] m with fixed seed (Rule 2, paper_v2).
+# Sampled from U[100, 200] m with fixed seed (Rule 2).
 # ---------------------------------------------------------------------------
 SEED = 42
 random.seed(SEED)
