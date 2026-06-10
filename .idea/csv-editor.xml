@@ -3,6 +3,13 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
+        <entry key="\dhn_benchmark\archetypes\DHN_THV_3G_R_S_BASE\kpis.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\dhn_benchmark\data\demand_profile.csv">
           <value>
             <Attribute>
