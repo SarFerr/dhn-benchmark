@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 RADIUS = {
     "source"     : 10,
     "junction"   : 10,
-    "substation" : 15,
+    "substation" : 10,
 }
 
 EDGE_COLOR = "black"
@@ -22,9 +22,9 @@ EDGE_LW    = 1.0
 
 NODE_STYLE = {
     # type       : (facecolor,  edgecolor, lw,  alpha)
-    "source"     : ("black",    "black",   1.5,  1.0),
-    "junction"   : ("black",    "black",   1.5,  1.0),
-    "substation" : ("#CCCCFF",   "blue",    1.5,  1.0),
+    "source"     : ("blue",     "blue",    1.2,  1.0),
+    "junction"   : ("black",    "black",   1.2,  1.0),
+    "substation" : ("#CCCCFF",   "blue",   1.2,  1.0),
 }
 
 
@@ -48,7 +48,7 @@ def plot_topology(nodes, edges, title="DHN_Network",
     fig, ax
     """
     if ax is None:
-        fig, ax = plt.subplots(figsize=(10, 10))
+        fig, ax = plt.subplots(figsize=(7, 7))
     else:
         fig = ax.get_figure()
 
