@@ -203,8 +203,6 @@ def select_dn(Q_w):
     return dn, di, do, dc, s
 
 
-# For ring topology: use total network load / 2 for ring pipes (flow splits)
-# and individual substation load for radial branches
 Q_total = n_sub * Q_PEAK_W * HEAT_LOSS_FACTOR
 
 PIPE_SIZING = {}
@@ -222,7 +220,7 @@ for u, v in EDGES:
     # - ring pipes carry approx half the total load (flow splits at src)
     # - radial branches carry 1 substation load
     # - src→sub branches carry 1 substation load
-    if (u, v) in [("src","a"), ("src","b"), ("b","src")]:
+    if (u, v) in [("src","a"), ("src","h"), ("h","src")]:
         Q = round(Q_total / 2, 1)
     elif (u, v) in [("a","c"), ("c","d"), ("d","b")]:
         Q = round(Q_total / 2, 1)
