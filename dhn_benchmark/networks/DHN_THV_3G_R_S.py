@@ -360,7 +360,7 @@ print(f"  pipes.csv    → {len(PIPE_SIZING)*2} rows")
 fig, ax = plot_topology(
     NODES, EDGES,
     title="DHN_THV_3G_R_S_BASE",
-    show=False,
+    show=True,
 )
 plot_path = os.path.join(OUT_DIR, "topology.png")
 fig.savefig(plot_path, dpi=300, bbox_inches="tight")
