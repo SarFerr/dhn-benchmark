@@ -60,7 +60,7 @@ from dhn_benchmark.plotting import plot_topology
 
 # ---------------------------------------------------------------------------
 # SECTION 1 — PIPE LENGTHS
-# Sampled from U[100, 200] m with fixed seed (Rule 2).
+# Sampled from U[100, 200] m with fixed seed.
 # ---------------------------------------------------------------------------
 SEED = 42
 random.seed(SEED)
@@ -89,21 +89,6 @@ for u, v in EDGE_LIST:
 # ---------------------------------------------------------------------------
 # SECTION 2 — NODE COORDINATES
 # Derived from pipe lengths so that euclidean(u,v) == PIPE_L[(u,v)].
-# Layout rules (all edges horizontal or vertical):
-#   src → a   : vertical   downward
-#   src → b   : horizontal rightward
-#   a   → c   : vertical   downward
-#   b   → d   : horizontal rightward
-#   a   → sub1: horizontal leftward
-#   a   → sub2: horizontal rightward
-#   b   → sub3: vertical   upward
-#   b   → sub4: vertical   downward
-#   c   → sub5: horizontal leftward
-#   c   → sub6: horizontal rightward
-#   c   → sub7: vertical   downward
-#   d   → sub8: vertical   downward
-#   d   → sub9: vertical   upward
-#   d   → sub10:horizontal rightward
 # ---------------------------------------------------------------------------
 _ay = PIPE_L[("src", "a")]
 _bx = PIPE_L[("src", "b")]
@@ -300,7 +285,7 @@ print(f"\nExporting to: {OUT_DIR}")
 with open(os.path.join(OUT_DIR, "nodes.csv"), "w", newline="") as f:
     w = csv.writer(f)
     w.writerow([
-        "node_id", "node_type", "x_m", "y_m", "circuit",
+        "node_id", "node_type", "x", "y", "circuit",
         "Q_peak_W", "p_pump_set_bar",
         "T_supply_set_degC", "delta_T_nom_K",
     ])

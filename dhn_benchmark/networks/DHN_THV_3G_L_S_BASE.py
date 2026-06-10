@@ -89,33 +89,43 @@ for u, v in EDGE_LIST:
 
 # ---------------------------------------------------------------------------
 # SECTION 2 — NODE COORDINATES
+# Derived from pipe lengths so that euclidean(u,v) == PIPE_L[(u,v)].
 # ---------------------------------------------------------------------------
+_ay = PIPE_L[("src", "a")]
+_by = _ay + PIPE_L[("a", "b")]
+_cy = _by + PIPE_L[("b", "c")]
+
+_dx = PIPE_L[("c", "d")]
+_ex = _dx + PIPE_L[("d", "e")]
+
+_fy = _cy - PIPE_L[("e", "f")]
+
 NODES = [
     # id        type            x                                   y
     ("src",    "source",        0,                                  0),
-    ("a",      "junction",      0,                                  200),
-    ("b",      "junction",      0,                                  400),
-    ("c",      "junction",      0,                                  600),
-    ("d",      "junction",      300,                                600),
-    ("e",      "junction",      600,                                600),
-    ("f",      "junction",      600,                                300),
-    ("g",      "junction",      600,                                0),
-    ("h",      "junction",      300,                                0),
+    ("a",      "junction",      0,                                  _ay),
+    ("b",      "junction",      0,                                  _by),
+    ("c",      "junction",      0,                                  _cy),
+    ("d",      "junction",      _dx,                                _cy),
+    ("e",      "junction",      _ex,                                _cy),
+    ("f",      "junction",      _ex,                                _fy),
+    ("g",      "junction",      _ex,                                0),
+    ("h",      "junction",      _dx,                                0),
     # substations of a
-    ("sub1",   "substation",    0 - PIPE_L[("a", "sub1")],          200),
-    ("sub2",   "substation",    0 + PIPE_L[("a", "sub2")],          200),
+    ("sub1",   "substation",    0 - PIPE_L[("a", "sub1")],          _ay),
+    ("sub2",   "substation",    0 + PIPE_L[("a", "sub2")],          _ay),
     # substations of b
-    ("sub3",   "substation",    0 - PIPE_L[("b", "sub3")],          400),
-    ("sub4",   "substation",    0 + PIPE_L[("b", "sub4")],          400),
+    ("sub3",   "substation",    0 - PIPE_L[("b", "sub3")],          _by),
+    ("sub4",   "substation",    0 + PIPE_L[("b", "sub4")],          _by),
     # substations of d
-    ("sub5",   "substation",    300,                                600 - PIPE_L[("d", "sub5")]),
-    ("sub6",   "substation",    300,                                600 + PIPE_L[("d", "sub6")]),
+    ("sub5",   "substation",    _dx,                                _cy - PIPE_L[("d", "sub5")]),
+    ("sub6",   "substation",    _dx,                                _cy + PIPE_L[("d", "sub6")]),
     # substations of f
-    ("sub7",   "substation",    600 - PIPE_L[("f", "sub7")],        300 ),
-    ("sub8",   "substation",    600 + PIPE_L[("f", "sub8")],        300),
+    ("sub7",   "substation",    _ex - PIPE_L[("f", "sub7")],        _fy ),
+    ("sub8",   "substation",    _ex + PIPE_L[("f", "sub8")],        _fy),
     # substations of h
-    ("sub9",   "substation",   300,                                 0 - PIPE_L[("h", "sub9")]),
-    ("sub10",  "substation",   300,                                 0 + PIPE_L[("h", "sub10")]),
+    ("sub9",   "substation",   _dx,                                 0 - PIPE_L[("h", "sub9")]),
+    ("sub10",  "substation",   _dx,                                 0 + PIPE_L[("h", "sub10")]),
 ]
 
 EDGES = EDGE_LIST
@@ -213,19 +223,11 @@ print(f"\n{'pipe_id':<14} {'from':<8} {'to':<10} "
 print("-" * 75)
 
 for u, v in EDGES:
-    pid  = f"{u}_{v}"
-    Lp   = PIPE_L[(u, v)]
 
-    # Load assignment:
-    # - ring pipes carry approx half the total load (flow splits at src)
-    # - radial branches carry 1 substation load
-    # - src→sub branches carry 1 substation load
-    if (u, v) in [("src","a"), ("src","h"), ("h","src")]:
-        Q = round(Q_total / 2, 1)
-    elif (u, v) in [("a","c"), ("c","d"), ("d","b")]:
-        Q = round(Q_total / 2, 1)
-    else:
-        Q = round(Q_PEAK_W * HEAT_LOSS_FACTOR, 1)
+    pid = f"{u}_{v}"
+    Lp  = PIPE_L[(u, v)]
+
+    Q = round(Q_PEAK_W * HEAT_LOSS_FACTOR, 1)
 
     dn, di, do, dc, s = select_dn(Q)
 
@@ -276,7 +278,7 @@ print(f"\nExporting to: {OUT_DIR}")
 with open(os.path.join(OUT_DIR, "nodes.csv"), "w", newline="") as f:
     w = csv.writer(f)
     w.writerow([
-        "node_id", "node_type", "x_m", "y_m", "circuit",
+        "node_id", "node_type", "x", "y", "circuit",
         "Q_peak_W", "p_pump_set_bar",
         "T_supply_set_degC", "delta_T_nom_K",
     ])
