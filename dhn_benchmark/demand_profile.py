@@ -144,7 +144,6 @@ def export_csv(out_path="data/demand_profile.csv"):
                 labels[t],
                 WEEKLY_SHAPE[t],
                 WEEKLY_DEMAND_W[t],
-                round(WEEKLY_DEMAND_W[t] / 1000, 3),
             ])
     print(f"demand_profile.csv exported → {out_path}")
     print(f"  timesteps : {N_WEEK}  (Δt={DT_MIN} min, 7 days)")
