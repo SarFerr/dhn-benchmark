@@ -17,6 +17,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\dhn_benchmark\data\DHN_THV_3G_R_S_BASE\pipes.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\dhn_benchmark\data\demand_profile.csv">
           <value>
             <Attribute>
