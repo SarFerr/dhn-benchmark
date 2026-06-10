@@ -34,7 +34,7 @@ import networkx as nx
 # ---------------------------------------------------------------------------
 THIS_DIR  = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(THIS_DIR, "..", ".."))
-OUT_DIR   = os.path.join(REPO_ROOT, "archetypes", "DHN_THV_3G_R_S_BASE")
+OUT_DIR = os.path.join(THIS_DIR, "..", "archetypes", "DHN_THV_3G_R_S_BASE")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # Add repo root to path so dhn_benchmark package is importable
