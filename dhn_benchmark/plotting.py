@@ -78,7 +78,7 @@ def plot_topology(nodes, edges, title="DHN_Network",
         if label_offsets and nid in label_offsets:
             dx, dy, ha, va = label_offsets[nid]
         else:
-            dx, dy, ha, va = r + 5, 5, "left", "center"
+            dx, dy, ha, va = r + 5, 10, "left", "center"
         ax.text(
             x + dx, -y + dy, nid,
             ha=ha, va=va,
