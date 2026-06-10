@@ -4,7 +4,7 @@
 #
 # Methodology I — Purpose-driven design (paper_v2, Section 6.2)
 #   Rule 1: exactly 10 substations
-#   Rule 2: pipe lengths sampled from U[100, 200] m, seed=43
+#   Rule 2: pipe lengths sampled from U[100, 200] m, seed=42
 #   Rule 3: ring topology — single closed main loop, 1 independent hydraulic loop
 #
 # Outputs (dhn_benchmark/archetypes/DHN_THV_3G_L_S_BASE/):
@@ -54,30 +54,33 @@ from dhn_benchmark.plotting import plot_topology
 
 # ---------------------------------------------------------------------------
 # SECTION 1 — PIPE LENGTHS
-# Sampled from U[100, 200] m, seed=43.
+# Sampled from U[100, 200] m, seed=42.
 # ---------------------------------------------------------------------------
-SEED = 43
+SEED = 42
 random.seed(SEED)
 
 EDGE_LIST = [
-    # ring — 5 pipes forming the closed loop
+    # ring — 9 pipes forming the closed loop
     ("src", "a"),
-    ("a",   "c"),
+    ("a",   "b"),
+    ("b",   "c"),
     ("c",   "d"),
-    ("d",   "b"),
-    ("b",   "src"),
+    ("d",   "e"),
+    ("e",   "f"),
+    ("f",   "g"),
+    ("g",   "h"),
+    ("h",   "src"),
     # radial branches — 2 substations per junction
     ("a",   "sub1"),
     ("a",   "sub2"),
     ("b",   "sub3"),
     ("b",   "sub4"),
-    ("c",   "sub5"),
-    ("c",   "sub6"),
-    ("d",   "sub7"),
-    ("d",   "sub8"),
-    # direct branches from source
-    ("src", "sub9"),
-    ("src", "sub10"),
+    ("d",   "sub5"),
+    ("d",   "sub6"),
+    ("f",   "sub7"),
+    ("f",   "sub8"),
+    ("h",   "sub9"),
+    ("h",   "sub10"),
 ]
 
 PIPE_L = {}
@@ -86,38 +89,33 @@ for u, v in EDGE_LIST:
 
 # ---------------------------------------------------------------------------
 # SECTION 2 — NODE COORDINATES
-#
-# Ring nodes: fixed rectangular layout (visual clarity).
-#   src(0, 0)   — top centre
-#   a(-200, 200)— left
-#   b(200, 200) — right
-#   c(-200, 500)— bottom-left
-#   d(200, 500) — bottom-right
-#
-# Radial branches: substation placed at euclidean distance == PIPE_L from junction.
 # ---------------------------------------------------------------------------
 NODES = [
-    # id        type            x                                    y
-    ("src",    "source",        0,                                   0),
-    ("a",      "junction",     -200,                                 200),
-    ("b",      "junction",      200,                                 200),
-    ("c",      "junction",     -200,                                 500),
-    ("d",      "junction",      200,                                 500),
-    # substations of a — horizontal branches
-    ("sub1",   "substation",   -200 - PIPE_L[("a", "sub1")],        200),
-    ("sub2",   "substation",   -200 + PIPE_L[("a", "sub2")],        200),
-    # substations of b — right and downward
-    ("sub3",   "substation",    200 + PIPE_L[("b", "sub3")],        200),
-    ("sub4",   "substation",    200,                                 200 + PIPE_L[("b", "sub4")]),
-    # substations of c — left and downward
-    ("sub5",   "substation",   -200 - PIPE_L[("c", "sub5")],        500),
-    ("sub6",   "substation",   -200,                                 500 + PIPE_L[("c", "sub6")]),
-    # substations of d — right and downward
-    ("sub7",   "substation",    200,                                 500 + PIPE_L[("d", "sub7")]),
-    ("sub8",   "substation",    200 + PIPE_L[("d", "sub8")],        500),
-    # substations of src — horizontal left and right
-    ("sub9",   "substation",   -PIPE_L[("src", "sub9")],            0),
-    ("sub10",  "substation",   +PIPE_L[("src", "sub10")],           0),
+    # id        type            x                                   y
+    ("src",    "source",        0,                                  0),
+    ("a",      "junction",      0,                                  200),
+    ("b",      "junction",      0,                                  400),
+    ("c",      "junction",      0,                                  600),
+    ("d",      "junction",      300,                                600),
+    ("e",      "junction",      600,                                600),
+    ("f",      "junction",      600,                                300),
+    ("g",      "junction",      600,                                0),
+    ("h",      "junction",      300,                                0),
+    # substations of a
+    ("sub1",   "substation",    0 - PIPE_L[("a", "sub1")],          200),
+    ("sub2",   "substation",    0 + PIPE_L[("a", "sub2")],          200),
+    # substations of b
+    ("sub3",   "substation",    0 - PIPE_L[("b", "sub3")],          400),
+    ("sub4",   "substation",    0 + PIPE_L[("b", "sub4")],          400),
+    # substations of d
+    ("sub5",   "substation",    300,                                600 - PIPE_L[("d", "sub5")]),
+    ("sub6",   "substation",    300,                                600 + PIPE_L[("d", "sub6")]),
+    # substations of f
+    ("sub7",   "substation",    600 - PIPE_L[("f", "sub7")],        300 ),
+    ("sub8",   "substation",    600 + PIPE_L[("f", "sub8")],        300),
+    # substations of h
+    ("sub9",   "substation",   300,                                 0 - PIPE_L[("h", "sub9")]),
+    ("sub10",  "substation",   300,                                 0 + PIPE_L[("h", "sub10")]),
 ]
 
 EDGES = EDGE_LIST
@@ -129,11 +127,11 @@ N = len(NODES)
 E = len(EDGES)
 L = E - N + 1
 
-assert N == 15, f"Expected 15 nodes, got {N}"
-assert E == 15, f"Expected 15 edges, got {E}"
+assert N == 19, f"Expected 19 nodes, got {N}"
+assert E == 19, f"Expected 19 edges, got {E}"
 assert L == 1,  f"Expected 1 loop, got {L}"
 assert sum(1 for n in NODES if n[1] == "source")     == 1
-assert sum(1 for n in NODES if n[1] == "junction")   == 4
+assert sum(1 for n in NODES if n[1] == "junction")   == 8
 assert sum(1 for n in NODES if n[1] == "substation") == 10
 
 print(f"Topology OK — N={N}, E={E}, L={L}")
