@@ -54,7 +54,7 @@ from dhn_benchmark.plotting import plot_topology
 
 # ---------------------------------------------------------------------------
 # SECTION 1 — PIPE LENGTHS
-# Sampled from U[100, 200] m, seed=42.
+# Sampled from U[100, 200] m, seed=43.
 # ---------------------------------------------------------------------------
 SEED = 42
 random.seed(SEED)
