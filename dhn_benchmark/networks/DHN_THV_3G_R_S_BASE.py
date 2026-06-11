@@ -7,11 +7,6 @@
 #   Rule 2: pipe lengths sampled from U[100, 200] m, seed=42
 #   Rule 3: radial tree topology, depth 3, no loops (L=0)
 #
-# Coordinate system:
-#   origin = src node
-#   x [m]  = horizontal, positive rightward
-#   y [m]  = vertical,   positive downward
-#
 # Outputs (data/DHN_THV_3G_R_S_BASE/):
 #   nodes.csv     — node table with boundary conditions (supply + return)
 #   pipes.csv     — pipe table with all modelling parameters
