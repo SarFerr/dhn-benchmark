@@ -259,6 +259,7 @@ for u, v in EDGES:
         "soil_lambda_WmK"        : LAMBDA_SOIL,
         "T_ground_degC"          : T_GROUND,
         "U_linear_WmK"           : u_linear(do, dc),
+        "U_Wm2K": round(u_linear(do, dc) / (math.pi * do), 4),
     }
 
     print(f"{pid:<14} {u:<8} {v:<10} "
@@ -275,33 +276,32 @@ print(f"  Q_peak_tot = {n_sub * Q_PEAK_W / 1e6:.2f} MW    target: < 5 MW ✓")
 # ---------------------------------------------------------------------------
 print(f"\nExporting to: {OUT_DIR}")
 
+# nodes.csv
 with open(os.path.join(OUT_DIR, "nodes.csv"), "w", newline="") as f:
     w = csv.writer(f)
     w.writerow([
-        "node_id", "node_type", "x", "y", "circuit",
+        "node_id", "node_type", "x_m", "y_m",
         "Q_peak_W", "p_pump_set_bar",
         "T_supply_set_degC", "delta_T_nom_K",
     ])
     for nid, ntype, x, y in NODES:
         w.writerow([
-            nid + "_s", ntype, x, y, "supply",
+            nid,
+            ntype,
+            x,
+            y,
             "demand_profile.csv" if ntype == "substation" else "",
             P_NOM                if ntype == "source"     else "",
             T_SUPPLY             if ntype == "source"     else "",
             DELTA_T              if ntype == "substation" else "",
         ])
-        w.writerow([
-            nid + "_r", ntype, x, y, "return",
-            "demand_profile.csv" if ntype == "substation" else "",
-            "", "",
-            DELTA_T              if ntype == "substation" else "",
-        ])
-print(f"  nodes.csv    → {len(NODES)*2} rows")
+print(f"  nodes.csv    → {len(NODES)} rows")
 
+# pipes.csv
 with open(os.path.join(OUT_DIR, "pipes.csv"), "w", newline="") as f:
     w = csv.writer(f)
     w.writerow([
-        "pipe_id", "from_node", "to_node", "circuit",
+        "pipe_id", "from_node", "to_node",
         "length_m", "d_inner_m", "d_outer_m", "d_casing_m", "wall_m",
         "insulation_thickness_m",
         "DN_mm", "roughness_m",
@@ -310,11 +310,13 @@ with open(os.path.join(OUT_DIR, "pipes.csv"), "w", newline="") as f:
         "PUR_rho_kgm3", "PUR_cp_JkgK", "PUR_lambda_WmK",
         "HDPE_rho_kgm3", "HDPE_cp_JkgK", "HDPE_lambda_WmK",
         "burial_depth_m", "soil_lambda_WmK", "T_ground_degC",
-        "U_linear_WmK",
+        "U_linear_WmK", "U_Wm2K",
     ])
     for pid, d in PIPE_SIZING.items():
-        u, v = d["from_node"], d["to_node"]
-        row_common = [
+        w.writerow([
+            pid,
+            d["from_node"],
+            d["to_node"],
             d["length_m"],
             d["d_inner_m"], d["d_outer_m"], d["d_casing_m"], d["wall_m"],
             d["insulation_thickness_m"],
@@ -325,11 +327,9 @@ with open(os.path.join(OUT_DIR, "pipes.csv"), "w", newline="") as f:
             d["PUR_rho_kgm3"],   d["PUR_cp_JkgK"],   d["PUR_lambda_WmK"],
             d["HDPE_rho_kgm3"],  d["HDPE_cp_JkgK"],  d["HDPE_lambda_WmK"],
             d["burial_depth_m"], d["soil_lambda_WmK"], d["T_ground_degC"],
-            d["U_linear_WmK"],
-        ]
-        w.writerow([pid + "_s", u + "_s", v + "_s", "supply"] + row_common)
-        w.writerow([pid + "_r", v + "_r", u + "_r", "return"] + row_common)
-print(f"  pipes.csv    → {len(PIPE_SIZING)*2} rows")
+            d["U_linear_WmK"], d["U_Wm2K"],
+        ])
+print(f"  pipes.csv    → {len(PIPE_SIZING)} rows")
 
 # ---------------------------------------------------------------------------
 # SECTION 7 — TOPOLOGY PLOT
@@ -344,3 +344,30 @@ fig.savefig(plot_path, dpi=300, bbox_inches="tight")
 plt.close(fig)
 print(f"  topology.png → {plot_path}")
 print(f"\nDone → {OUT_DIR}")
+
+# ---------------------------------------------------------------------------
+# SECTION 8 — INCIDENCE MATRIX
+# ---------------------------------------------------------------------------
+# incidence_matrix.csv
+node_ids = [n[0] for n in NODES]
+edge_ids = [f"{u}_{v}" for u, v in EDGES]
+
+with open(os.path.join(OUT_DIR, "incidence_matrix.csv"), "w", newline="") as f:
+    w = csv.writer(f)
+
+    w.writerow(["node_id"] + edge_ids)
+
+    for node in node_ids:
+        row = [node]
+
+        for u, v in EDGES:
+            if node == u:
+                row.append(-1)
+            elif node == v:
+                row.append(+1)
+            else:
+                row.append(0)
+
+        w.writerow(row)
+
+print(f"  incidence_matrix.csv → {len(node_ids)} x {len(edge_ids)}")

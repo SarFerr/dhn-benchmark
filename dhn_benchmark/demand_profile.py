@@ -42,18 +42,11 @@ F_OFF    = 0.00
 def _build_daily_shape():
     """
     Builds the 144-point daily normalised load profile.
-
-    Time windows (in timestep indices, 1 step = 10 min):
-      t   0– 35  →  h 00:00–05:50  : shutdown   f = 0.00
-      t  36– 41  →  h 06:00–06:50  : rise ramp  f = 0.00 → 1.00 (linear, 6 steps)
-      t  42– 47  →  h 07:00–07:50  : decay ramp f = 1.00 → 0.35 (linear, 6 steps)
-      t  48–131  →  h 08:00–21:50  : steady     f = 0.35
-      t 132–143  →  h 22:00–23:50  : shutdown   f = 0.00
     """
 
     shape = []
     for t in range(N_DAY):
-        h_frac = t / N_HOUR   # fractional hour (0.0 .. 23.833)
+        h_frac = t / N_HOUR
 
         if h_frac < 6.0:
             # overnight shutdown
