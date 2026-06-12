@@ -361,11 +361,5 @@ plt.tight_layout()
 plt.savefig(os.path.join(HERE, "results_velocities.png"), dpi=150, bbox_inches="tight")
 plt.show()
 
-print(f"\nSimulation summary:")
-print(f"  Timesteps        : {NUM_STEPS}  (Dt=10 min, 7 days)")
-print(f"  Simulation time  : {sim_time:.1f} s")
-print(f"  Time per step    : {sim_time/NUM_STEPS*1000:.1f} ms/step")
-print(f"  Peak mdot (pump) : {mdot_pump_df.iloc[:, 0].max():.3f} kg/s")
-print(f"  Min T supply     : {T_junc_df.iloc[:, junc_col['src_s']].min():.2f} degC")
-print(f"  Max T supply     : {T_junc_df.iloc[:, junc_col['src_s']].max():.2f} degC")
+
 print(f"\nPlots saved to: {HERE}")
