@@ -1,4 +1,4 @@
-within DHN_Benchmark;
+within modelica_implementation;
 package Archetypes
   "Concrete synthetic benchmark district heating networks.
    Each archetype is identified by a six-field code:

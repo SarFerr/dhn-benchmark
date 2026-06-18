@@ -1,4 +1,4 @@
-within DHN_Benchmark.Archetypes;
+within modelica_implementation.Archetypes;
 
 model DHN_THV_3G_R_S_BASE
   "Benchmark network DHN_THV_3G_R_S_BASE
@@ -10,10 +10,10 @@ model DHN_THV_3G_R_S_BASE
    Control: VF-CT (variable flow, constant temperature), T_sup=80 degC.
   "
 
-  import DHN_Benchmark.Components.PlantStation;
-  import DHN_Benchmark.Components.DHNJunction;
-  import DHN_Benchmark.Components.DHNPipe;
-  import DHN_Benchmark.Components.BuildingWithIndirectETS;
+  import modelica_implementation.Components.PlantStation;
+  import modelica_implementation.Components.DHNJunction;
+  import modelica_implementation.Components.DHNPipe;
+  import modelica_implementation.Components.BuildingWithIndirectETS;
 
   replaceable package Medium = Buildings.Media.Water
     "District heating medium";

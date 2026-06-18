@@ -1,4 +1,4 @@
-within DHN_Benchmark;
+within modelica_implementation;
 package Components
   "Reusable custom blocks for assembling DHN benchmark networks.
    All components use Buildings.Media.Water as default medium and follow

@@ -1,4 +1,4 @@
-package DHN_Benchmark
+package modelica_implementation
   "Benchmark networks for district heating systems.
    Companion library to the paper:
    'Synthetic Benchmark Networks for District Heating Systems:
@@ -32,4 +32,4 @@ in OpenModelica using the Buildings.DHC framework.
 <li><code>DHN_THV_3G_R_S_BASE</code> — Thermo-Hydraulic Validation, 3GDH, Radial, Small (baseline)</li>
 </ul>
 </html>"));
-end DHN_Benchmark;
+end modelica_implementation;

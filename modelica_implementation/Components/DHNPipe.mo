@@ -1,4 +1,4 @@
-within DHN_Benchmark.Components;
+within modelica_implementation.Components;
 model DHNPipe
   "Two-pipe district heating segment (supply + return) with plug-flow thermal
    transport and linear heat losses to the ground.

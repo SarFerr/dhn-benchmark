@@ -1,4 +1,4 @@
-within DHN_Benchmark.Components;
+within modelica_implementation.Components;
 model BuildingWithIndirectETS
 
   "Indirect energy transfer station with building heating load from time series.

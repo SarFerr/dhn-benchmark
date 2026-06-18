@@ -1,4 +1,4 @@
-within DHN_Benchmark.Components;
+within modelica_implementation.Components;
 model PlantStation
   "Ideal central heat plant for 3GDH benchmark networks.
    Comprises an expansion vessel (absolute pressure reference),
@@ -57,11 +57,11 @@ model PlantStation
     inputType       = Buildings.Fluid.Types.InputType.Continuous,
     addPowerToMedium = false)
     "Primary circulation pump (constant differential-pressure control)" annotation(
-    Placement(transformation(origin = {-20, -40}, extent = {{-10, -10}, {10, 10}})));
+    Placement(transformation(origin = {0, -40}, extent = {{-10, -10}, {10, 10}})));
   
   Modelica.Blocks.Sources.Constant dpPumpSet(k = dp_pump_set)
      "Differential pressure setpoint [Pa]" annotation(
-    Placement(transformation(origin = {-70, 20}, extent = {{-10, -10}, {10, 10}})));
+    Placement(transformation(origin = {-70, 0}, extent = {{-10, -10}, {10, 10}})));
   
   // ---------------------------------------------------------------
   // Ideal heater (imposes district supply temperature)
@@ -72,11 +72,11 @@ model PlantStation
     dp_nominal     = dp_heater_nominal,
     QMax_flow      = QDis_flow_nominal)
     "Ideal central plant heater (imposes supply temperature)" annotation(
-    Placement(transformation(origin = {40, -40}, extent = {{-10, -10}, {10, 10}})));
+    Placement(transformation(origin = {50, -40}, extent = {{-10, -10}, {10, 10}})));
   
   Modelica.Blocks.Sources.Constant TPlantSup(k = TDisSup_nominal)
     "Plant supply temperature setpoint signal [K]" annotation(
-    Placement(transformation(origin = {-70, 60}, extent = {{-10, -10}, {10, 10}})));
+    Placement(transformation(origin = {-70, 40}, extent = {{-10, -10}, {10, 10}})));
   
   // ---------------------------------------------------------------
   // Instrumentation sensor — return temperature
@@ -87,7 +87,7 @@ model PlantStation
     allowFlowReversal = false,
     tau               = 0)
     "Return temperature after pump, before heat exchanger [K]" annotation(
-    Placement(transformation(origin = {10, -40}, extent = {{-10, -10}, {10, 10}})));
+    Placement(transformation(origin = {-40, -40}, extent = {{-10, -10}, {10, 10}})));
   
   // ---------------------------------------------------------------
   // External fluid ports
@@ -113,36 +113,34 @@ model PlantStation
     iconTransformation(origin = {110, 70}, extent = {{-10, -10}, {10, 10}})));
 
 equation
-
+  
   // ---------------------------------------------------------------
   // Primary loop connections
   // ---------------------------------------------------------------
-  connect(exp.ports[1], pump.port_a) annotation(
-    Line(points = {{-70, -40}, {-30, -40}}, color = {0, 127, 255}));
-  connect(port_aDis, pump.port_a) annotation(
-    Line(points = {{100, -20}, {-40, -20}, {-40, -40}, {-30, -40}}));
-    connect(pump.port_b, senT_ret.port_a) annotation(
-    Line(points = {{-10, -40}, {0, -40}}, color = {0, 127, 255}));
-  connect(senT_ret.port_b, plaHea.port_a) annotation(
-    Line(points = {{20, -40}, {30, -40}}, color = {0, 127, 255}));  
-
+  connect(exp.ports[1], senT_ret.port_a) annotation(
+    Line(points = {{-70, -40}, {-50, -40}}, color = {0, 127, 255}));
+  connect(senT_ret.port_b, pump.port_a) annotation(
+    Line(points = {{-30, -40}, {-10, -40}}, color = {0, 127, 255}));
+  connect(pump.port_b, plaHea.port_a) annotation(
+    Line(points = {{10, -40}, {40, -40}}, color = {0, 127, 255}));
   connect(plaHea.port_b, port_bDis) annotation(
-    Line(points = {{50, -40}, {60, -40}, {60, 20}, {100, 20}}, color = {0, 127, 255}));
-  
+    Line(points = {{60, -40}, {80, -40}, {80, 20}, {100, 20}}, color = {0, 127, 255}));
+  connect(port_aDis, senT_ret.port_a) annotation(
+    Line(points = {{100, -20}, {-50, -20}, {-50, -40}}));
+
   // ---------------------------------------------------------------
   // Control signal connections
   // ---------------------------------------------------------------
   connect(dpPumpSet.y, pump.dp_in) annotation(
-    Line(points = {{-58, 20}, {-20, 20}, {-20, -28}}, color = {0, 0, 127}));
+    Line(points = {{-58, 0}, {0, 0}, {0, -28}}, color = {0, 0, 127}));
   connect(TPlantSup.y, plaHea.TSet) annotation(
-    Line(points = {{-58, 60}, {20, 60}, {20, -32}, {28, -32}}, color = {0, 0, 127}));
-  
+    Line(points = {{-58, 40}, {20, 40}, {20, -32}, {38, -32}}, color = {0, 0, 127}));
   // ---------------------------------------------------------------
   // Output signal connections
   // ---------------------------------------------------------------
   connect(plaHea.Q_flow, Q_flow) annotation(
-    Line(points = {{52, -32}, {80, -32}, {80, 70}, {110, 70}}, color = {0, 0, 127}));
-
+    Line(points = {{62, -32}, {70, -32}, {70, 70}, {110, 70}}, color = {0, 0, 127}));
+  
 annotation(
     uses(Buildings(version = "13.0.0"), Modelica(version = "4.1.0")),
     Icon(

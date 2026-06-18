@@ -1,4 +1,4 @@
-within DHN_Benchmark.Components;
+within modelica_implementation.Components;
 model DHNJunction
   "Two-pipe district heating junction (T-piece) for radial tree networks.
    Each instance represents one T-junction on both supply and return sides.
