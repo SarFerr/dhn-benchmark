@@ -1,4 +1,4 @@
-# DHN-Benchmark
+# dhn-benchmark
 
 Synthetic benchmark networks for district heating systems (DHNs), implemented in
 OpenModelica using the [Buildings](https://github.com/lbl-srg/modelica-buildings)
