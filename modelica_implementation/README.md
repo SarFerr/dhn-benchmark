@@ -46,7 +46,7 @@ DHN-Benchmark/
 
    ```bash
    pip install buildingspy
-   python Scripts/extract_results_DHN_THV_3G_R_S_BASE.py <path_to_res.mat>
+   python Output/extract_results_DHN_THV_3G_R_S_BASE.py <path_to_res.mat>
    ```
 
 ## Benchmark naming convention
