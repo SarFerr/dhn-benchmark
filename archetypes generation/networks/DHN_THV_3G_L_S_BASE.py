@@ -1,19 +1,19 @@
-# DHN_THV_3G_M_S_BASE.py
+# DHN_THV_3G_L_S_BASE.py
 #
-# Benchmark archetype: Thermo-Hydraulic Validation, 3GDH, Meshed, Small
+# Benchmark archetype: Thermo-Hydraulic Validation, 3GDH, Ring, Small
 #
 # Methodology I — Purpose-driven design (paper_v2, Section 6.2)
 #   Rule 1: exactly 10 substations
 #   Rule 2: pipe lengths sampled from U[100, 200] m, seed=42
-#   Rule 3: meshed topology — optimal spasity index (L=8)
+#   Rule 3: ring topology — single closed main loop, 1 independent hydraulic loop
 #
-# Outputs (dhn_benchmark/archetypes/DHN_THV_3G_M_S_BASE/):
+# Outputs (archetypes generation/archetypes/DHN_THV_3G_L_S_BASE/):
 #   nodes.csv     — node table with boundary conditions (supply + return)
 #   pipes.csv     — pipe table with all modelling parameters
 #   topology.png  — network topology plot (paper-ready, 300 dpi)
 #
 # Usage:
-#   python dhn_benchmark/networks/DHN_THV_3G_M_S_BASE.py
+#   python archetypes generation/networks/DHN_THV_3G_L_S_BASE.py
 
 import os
 import sys
@@ -29,7 +29,7 @@ import networkx as nx
 # ---------------------------------------------------------------------------
 THIS_DIR  = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(THIS_DIR, "..", ".."))
-OUT_DIR   = os.path.join(THIS_DIR, "..", "archetypes", "DHN_THV_3G_M_S_BASE")
+OUT_DIR   = os.path.join(THIS_DIR, "..", "archetypes", "DHN_THV_3G_L_S_BASE")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 sys.path.insert(0, REPO_ROOT)
@@ -59,36 +59,33 @@ from dhn_benchmark.plotting import plot_topology
 SEED = 42
 random.seed(SEED)
 
-EDGE_LIST_BASE = [
-    # ring
-    ("src", "a"), ("a", "b"), ("b", "c"), ("c", "d"),
-    ("d", "e"), ("e", "f"), ("f", "g"), ("g", "h"), ("h", "src"),
-    # radial branches
-    ("a", "sub1"), ("a", "sub2"),
-    ("b", "sub3"), ("b", "sub4"),
-    ("d", "sub5"), ("d", "sub6"),
-    ("f", "sub7"), ("f", "sub8"),
-    ("h", "sub9"), ("h", "sub10"),
+EDGE_LIST = [
+    # ring — 9 pipes forming the closed loop
+    ("src", "a"),
+    ("a",   "b"),
+    ("b",   "c"),
+    ("c",   "d"),
+    ("d",   "e"),
+    ("e",   "f"),
+    ("f",   "g"),
+    ("g",   "h"),
+    ("h",   "src"),
+    # radial branches — 2 substations per junction
+    ("a",   "sub1"),
+    ("a",   "sub2"),
+    ("b",   "sub3"),
+    ("b",   "sub4"),
+    ("d",   "sub5"),
+    ("d",   "sub6"),
+    ("f",   "sub7"),
+    ("f",   "sub8"),
+    ("h",   "sub9"),
+    ("h",   "sub10"),
 ]
-
-CROSS_EDGES = [
-    ("c", "g"),   # loop 2
-    ("e", "a"),   # loop 3
-    ("c", "e"),   # loop 4
-    ("e", "g"),   # loop 5
-    ("b", "h"),   # loop 6
-    ("c", "f"),   # loop 7
-    ("d", "g"),   # loop 8
-]
-
-ALL_EDGES = EDGE_LIST_BASE + CROSS_EDGES
 
 PIPE_L = {}
-for u, v in ALL_EDGES:
+for u, v in EDGE_LIST:
     PIPE_L[(u, v)] = round(random.uniform(100, 200), 1)
-
-RING_SET = set(tuple(e) for e in EDGE_LIST_BASE[:9])
-CROSS_SET = set(tuple(e) for e in CROSS_EDGES)
 
 # ---------------------------------------------------------------------------
 # SECTION 2 — NODE COORDINATES
@@ -131,7 +128,7 @@ NODES = [
     ("sub10",  "substation",   _dx,                                 0 + PIPE_L[("h", "sub10")]),
 ]
 
-EDGES = ALL_EDGES
+EDGES = EDGE_LIST
 
 # ---------------------------------------------------------------------------
 # SECTION 3 — TOPOLOGY CHECKS
@@ -141,18 +138,13 @@ E = len(EDGES)
 L = E - N + 1
 
 assert N == 19, f"Expected 19 nodes, got {N}"
-assert E == 26, f"Expected 26 edges, got {E}"
-assert L == 8, f"Expected 8 loops, got {L}"
-assert sum(1 for n in NODES if n[1] == "source") == 1
-assert sum(1 for n in NODES if n[1] == "junction") == 8
+assert E == 19, f"Expected 19 edges, got {E}"
+assert L == 1,  f"Expected 1 loop, got {L}"
+assert sum(1 for n in NODES if n[1] == "source")     == 1
+assert sum(1 for n in NODES if n[1] == "junction")   == 8
 assert sum(1 for n in NODES if n[1] == "substation") == 10
 
-G_check = nx.Graph()
-G_check.add_edges_from(EDGES)
-assert max(dict(G_check.degree()).values()) == 5, "max_degree exceeded 5"
-
 print(f"Topology OK — N={N}, E={E}, L={L}")
-print(f"max_degree check passed (= 5)")
 
 # ---------------------------------------------------------------------------
 # SECTION 4 — TOPOLOGY KPIs
@@ -162,29 +154,28 @@ G_nx.add_nodes_from([n[0] for n in NODES])
 G_nx.add_edges_from(EDGES)
 
 degrees = dict(G_nx.degree())
-n_src = sum(1 for n in NODES if n[1] == "source")
-n_jun = sum(1 for n in NODES if n[1] == "junction")
-n_sub = sum(1 for n in NODES if n[1] == "substation")
+n_src   = sum(1 for n in NODES if n[1] == "source")
+n_jun   = sum(1 for n in NODES if n[1] == "junction")
+n_sub   = sum(1 for n in NODES if n[1] == "substation")
 
 KPIS = {
-    "network_code": "DHN_THV_3G_M_S_BASE",
-    "generation": "3G",
-    "topology": "meshed",
-    "n_nodes": N,
-    "n_edges": E,
-    "n_loops": L,
-    "n_sources": n_src,
-    "n_junctions": n_jun,
-    "n_substations": n_sub,
-    "avg_degree": round(sum(degrees.values()) / N, 3),
-    "max_degree": max(degrees.values()),
-    "sparsity_S": round(1 - E / (N * (N - 1) / 2), 4),
-    "meshedness_alpha": round(L / max(2 * N - 5, 1), 4),
-    "diameter_hops": nx.diameter(G_nx),
-    "avg_path_hops": round(nx.average_shortest_path_length(G_nx), 3),
-    "total_length_m": round(sum(PIPE_L.values()), 1),
-    "total_length_km": round(sum(PIPE_L.values()) / 1000, 3),
-    "seed": SEED,
+    "network_code"     : "DHN_THV_3G_L_S_BASE",
+    "generation"       : "3G",
+    "topology"         : "ring",
+    "n_nodes"          : N,
+    "n_edges"          : E,
+    "n_loops"          : L,
+    "n_sources"        : n_src,
+    "n_junctions"      : n_jun,
+    "n_substations"    : n_sub,
+    "avg_degree"       : round(sum(degrees.values()) / N, 3),
+    "max_degree"       : max(degrees.values()),
+    "diameter_hops"    : nx.diameter(G_nx),
+    "avg_path_hops"    : round(nx.average_shortest_path_length(G_nx), 3),
+    "meshedness_alpha" : round(L / max(2 * N - 5, 1), 4),
+    "total_length_m"   : round(sum(PIPE_L.values()), 1),
+    "total_length_km"  : round(sum(PIPE_L.values()) / 1000, 3),
+    "seed"             : SEED,
 }
 
 print("\nKPIs:")
@@ -194,20 +185,19 @@ for k, v in KPIS.items():
 # ---------------------------------------------------------------------------
 # SECTION 5 — PIPE SIZING
 # ---------------------------------------------------------------------------
-gp = GEN_OPERATING["3G"]
-RHO = gp["rho"]
-CP = gp["cp"]
-DELTA_T = gp["delta_T_nom"]
-V_MAX = gp["v_max"]
+gp       = GEN_OPERATING["3G"]
+RHO      = gp["rho"]
+CP       = gp["cp"]
+DELTA_T  = gp["delta_T_nom"]
+V_MAX    = gp["v_max"]
 T_SUPPLY = gp["T_supply_nom"]
-P_NOM = gp["P_nom_bar"]
+P_NOM    = gp["P_nom_bar"]
 
 HEAT_LOSS_FACTOR = 1.05
-Q_total = n_sub * Q_PEAK_W * HEAT_LOSS_FACTOR
 
 
 def u_linear(d_o, d_casing):
-    R_ins = math.log(d_casing / d_o) / (2 * math.pi * LAMBDA_PUR)
+    R_ins  = math.log(d_casing / d_o)              / (2 * math.pi * LAMBDA_PUR)
     R_soil = math.log(2 * BURIAL_DEPTH / d_casing) / (2 * math.pi * LAMBDA_SOIL)
     return round(1.0 / (R_ins + R_soil), 4)
 
@@ -215,66 +205,70 @@ def u_linear(d_o, d_casing):
 def select_dn(Q_w):
     mdot = Q_w / (CP * DELTA_T)
     for dn, (di, do, s, dc) in sorted(PIPE_CATALOGUE.items()):
-        A = math.pi * di ** 2 / 4.0
-        if mdot / (RHO * A) <= V_MAX:
+        A = math.pi * di**2 / 4.0
+        v = mdot / (RHO * A)
+        if v <= V_MAX:
             return dn, di, do, dc, s
     dn, (di, do, s, dc) = sorted(PIPE_CATALOGUE.items())[-1]
     return dn, di, do, dc, s
 
 
+Q_total = n_sub * Q_PEAK_W * HEAT_LOSS_FACTOR
+
 PIPE_SIZING = {}
 
 print(f"\n{'pipe_id':<14} {'from':<8} {'to':<10} "
-      f"{'L m':>7} {'Q kW':>7} {'DN':>5} {'d_i mm':>8}  type")
-print("-" * 80)
+      f"{'L m':>7} {'Q kW':>7} {'DN':>5} "
+      f"{'d_i mm':>8} {'d_o mm':>8}")
+print("-" * 75)
 
 for u, v in EDGES:
+
     pid = f"{u}_{v}"
-    Lp = PIPE_L[(u, v)]
-    if (u, v) in RING_SET or (u, v) in CROSS_SET:
-        Q = round(Q_total / 2, 1)
-        ptype = "ring" if (u, v) in RING_SET else "cross"
-    else:
-        Q = round(Q_PEAK_W * HEAT_LOSS_FACTOR, 1)
-        ptype = "branch"
+    Lp  = PIPE_L[(u, v)]
+
+    Q = round(Q_PEAK_W * HEAT_LOSS_FACTOR, 1)
+
     dn, di, do, dc, s = select_dn(Q)
 
     PIPE_SIZING[pid] = {
-        "from_node": u,
-        "to_node": v,
-        "length_m": Lp,
-        "d_inner_m": di,
-        "d_outer_m": do,
-        "d_casing_m": dc,
-        "wall_m": s,
-        "insulation_thickness_m": round((dc - do) / 2, 5),
-        "DN_mm": dn,
-        "roughness_m": ROUGHNESS_STEEL,
-        "fluid_rho_kgm3": RHO,
-        "fluid_cp_JkgK": CP,
-        "fluid_mu_Pas": gp["mu"],
-        "fluid_lambda_WmK": gp["lambda"],
-        "steel_rho_kgm3": RHO_STEEL,
-        "steel_cp_JkgK": CP_STEEL,
-        "steel_lambda_WmK": LAMBDA_STEEL,
-        "PUR_rho_kgm3": RHO_PUR,
-        "PUR_cp_JkgK": CP_PUR,
-        "PUR_lambda_WmK": LAMBDA_PUR,
-        "HDPE_rho_kgm3": RHO_HDPE,
-        "HDPE_cp_JkgK": CP_HDPE,
-        "HDPE_lambda_WmK": LAMBDA_HDPE,
-        "burial_depth_m": BURIAL_DEPTH,
-        "soil_lambda_WmK": LAMBDA_SOIL,
-        "T_ground_degC": T_GROUND,
-        "U_linear_WmK": u_linear(do, dc),
+        "from_node"              : u,
+        "to_node"                : v,
+        "length_m"               : Lp,
+        "d_inner_m"              : di,
+        "d_outer_m"              : do,
+        "d_casing_m"             : dc,
+        "wall_m"                 : s,
+        "insulation_thickness_m" : round((dc - do) / 2, 5),
+        "DN_mm"                  : dn,
+        "roughness_m"            : ROUGHNESS_STEEL,
+        "fluid_rho_kgm3"         : RHO,
+        "fluid_cp_JkgK"          : CP,
+        "fluid_mu_Pas"           : gp["mu"],
+        "fluid_lambda_WmK"       : gp["lambda"],
+        "steel_rho_kgm3"         : RHO_STEEL,
+        "steel_cp_JkgK"          : CP_STEEL,
+        "steel_lambda_WmK"       : LAMBDA_STEEL,
+        "PUR_rho_kgm3"           : RHO_PUR,
+        "PUR_cp_JkgK"            : CP_PUR,
+        "PUR_lambda_WmK"         : LAMBDA_PUR,
+        "HDPE_rho_kgm3"          : RHO_HDPE,
+        "HDPE_cp_JkgK"           : CP_HDPE,
+        "HDPE_lambda_WmK"        : LAMBDA_HDPE,
+        "burial_depth_m"         : BURIAL_DEPTH,
+        "soil_lambda_WmK"        : LAMBDA_SOIL,
+        "T_ground_degC"          : T_GROUND,
+        "U_linear_WmK"           : u_linear(do, dc),
         "U_Wm2K": round(u_linear(do, dc) / (math.pi * do), 4),
     }
-    print(f"{pid:<14} {u:<8} {v:<10} "
-          f"{Lp:>7.1f} {Q / 1000:>7.1f} {dn:>5} {di * 1000:>8.1f}  [{ptype}]")
 
-print("-" * 80)
+    print(f"{pid:<14} {u:<8} {v:<10} "
+          f"{Lp:>7.1f} {Q/1000:>7.1f} {dn:>5} "
+          f"{di*1000:>8.1f} {do*1000:>8.1f}")
+
+print("-" * 75)
 L_tot = sum(d["length_m"] for d in PIPE_SIZING.values())
-print(f"  L_tot      = {L_tot / 1000:.2f} km   target: 1–5 km ✓")
+print(f"  L_tot      = {L_tot/1000:.2f} km   target: 1–5 km ✓")
 print(f"  Q_peak_tot = {n_sub * Q_PEAK_W / 1e6:.2f} MW    target: < 5 MW ✓")
 
 # ---------------------------------------------------------------------------
@@ -342,7 +336,7 @@ print(f"  pipes.csv    → {len(PIPE_SIZING)} rows")
 # ---------------------------------------------------------------------------
 fig, ax = plot_topology(
     NODES, EDGES,
-    title="DHN_THV_3G_M_S_BASE",
+    title="DHN_THV_3G_L_S_BASE",
     show=True,
 )
 plot_path = os.path.join(OUT_DIR, "topology.png")

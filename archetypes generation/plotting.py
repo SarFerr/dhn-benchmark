@@ -3,7 +3,7 @@
 # Standard plot function for DHN benchmark network topologies.
 #
 # Usage:
-#   from dhn_benchmark.plotting import plot_topology
+#   from archetypes generation.plotting import plot_topology
 #   plot_topology(NODES, EDGES, title="DHN_THV_3G_R_S_BASE")
 
 import matplotlib.pyplot as plt

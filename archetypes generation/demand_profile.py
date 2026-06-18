@@ -13,7 +13,7 @@
 #   - Same profile applied uniformly all 7 days
 #
 # Usage:
-#   from dhn_benchmark.demand_profile import DAILY_SHAPE, WEEKLY_SHAPE, DT_MIN, N_DAY, N_WEEK
+#   from archetypes generation.demand_profile import DAILY_SHAPE, WEEKLY_SHAPE, DT_MIN, N_DAY, N_WEEK
 
 
 # ---------------------------------------------------------------------------
