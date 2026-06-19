@@ -54,10 +54,7 @@ model DHN_THV_3G_L_S_BASE
     "Path to substation load time-series file";
 
   // ---------------------------------------------------------------
-  // Nominal flow rates
-  // All pipes DN25, ring topology: each ring segment carries
-  // approximately half the total flow in balanced conditions.
-  // Branch pipes carry flow for 1 substation each (m_sub).
+  // Nominal flow rates (bottom-up sizing from substations)
   // ---------------------------------------------------------------
   parameter Modelica.Units.SI.HeatFlowRate Q_peak_sub = 175000
     "Peak thermal load per substation [W]";
@@ -68,7 +65,7 @@ model DHN_THV_3G_L_S_BASE
   parameter Modelica.Units.SI.MassFlowRate m_sub = 1.39054
     "Nominal mass flow rate per substation [kg/s]";
 
-  parameter Modelica.Units.SI.MassFlowRate m_ring = 5 * m_sub
+  parameter Modelica.Units.SI.MassFlowRate m_ring = nSub * m_sub / 2
     "Nominal mass flow rate in ring segments (half total) [kg/s]";
 
   parameter Modelica.Units.SI.MassFlowRate m_total = nSub * m_sub
@@ -87,7 +84,7 @@ model DHN_THV_3G_L_S_BASE
     dp_pump_set       = 600000,
     dp_heater_nominal = 10000)
     "Central heat plant" annotation(
-    Placement(transformation(origin = {-200, 200}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {-200, 240}, extent = {{-20, -20}, {20, 20}})));
 
   // ---------------------------------------------------------------
   // Source junctions — src connects to ring pipe src_a (outlet)
@@ -97,118 +94,118 @@ model DHN_THV_3G_L_S_BASE
     redeclare package Medium = Medium,
     m_flow_nominal = m_total)
     "Source junction: connects plant to ring pipes src_a and h_src" annotation(
-    Placement(transformation(origin = {-120, 200}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {-120, 240}, extent = {{-20, -20}, {20, 20}})));
 
   // ---------------------------------------------------------------
-  // Ring pipes (9 segments, all DN25)
+  // Ring pipes (9 segments, all DN65)
   // ---------------------------------------------------------------
   DHNPipe pipe_src_a(
     redeclare package Medium = Medium,
     length         = 163.9,
-    d_inner        = 0.0282,
-    dIns           = 0.02815,
+    d_inner        = 0.0717,
+    dIns           = 0.03195,
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
     TGround        = TGround)
-    "Ring: src to a — DN25, 163.9 m" annotation(
-    Placement(transformation(origin = {-120, 100}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
+    "Ring: src to a — DN65, 163.9 m" annotation(
+    Placement(transformation(origin = {-120, 140}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
   DHNPipe pipe_a_b(
     redeclare package Medium = Medium,
     length         = 102.5,
-    d_inner        = 0.0282,
-    dIns           = 0.02815,
+    d_inner        = 0.0717,
+    dIns           = 0.03195,
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
     TGround        = TGround)
-    "Ring: a to b — DN25, 102.5 m" annotation(
-    Placement(transformation(origin = {-120, -20}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
+    "Ring: a to b — DN65, 102.5 m" annotation(
+    Placement(transformation(origin = {-120, -14}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
   DHNPipe pipe_b_c(
     redeclare package Medium = Medium,
     length         = 127.5,
-    d_inner        = 0.0282,
-    dIns           = 0.02815,
+    d_inner        = 0.0717,
+    dIns           = 0.03195,
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
     TGround        = TGround)
-    "Ring: b to c — DN25, 127.5 m" annotation(
-    Placement(transformation(origin = {-120, -140}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
+    "Ring: b to c — DN65, 127.5 m" annotation(
+    Placement(transformation(origin = {-120, -160}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
   DHNPipe pipe_c_d(
     redeclare package Medium = Medium,
     length         = 122.3,
-    d_inner        = 0.0282,
-    dIns           = 0.02815,
+    d_inner        = 0.0717,
+    dIns           = 0.03195,
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
     TGround        = TGround)
-    "Ring: c to d — DN25, 122.3 m" annotation(
-    Placement(transformation(origin = {20, -220}, extent = {{-20, -20}, {20, 20}})));
+    "Ring: c to d — DN65, 122.3 m" annotation(
+    Placement(transformation(origin = {20, -210}, extent = {{-20, -20}, {20, 20}})));
 
   DHNPipe pipe_d_e(
     redeclare package Medium = Medium,
     length         = 173.6,
-    d_inner        = 0.0282,
-    dIns           = 0.02815,
+    d_inner        = 0.0717,
+    dIns           = 0.03195,
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
     TGround        = TGround)
-    "Ring: d to e — DN25, 173.6 m" annotation(
-    Placement(transformation(origin = {160, -220}, extent = {{-20, -20}, {20, 20}})));
+    "Ring: d to e — DN65, 173.6 m" annotation(
+    Placement(transformation(origin = {220, -210}, extent = {{-20, -20}, {20, 20}})));
 
   DHNPipe pipe_e_f(
     redeclare package Medium = Medium,
     length         = 167.7,
-    d_inner        = 0.0282,
-    dIns           = 0.02815,
+    d_inner        = 0.0717,
+    dIns           = 0.03195,
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
     TGround        = TGround)
-    "Ring: e to f — DN25, 167.7 m" annotation(
-    Placement(transformation(origin = {280, -100}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
+    "Ring: e to f — DN65, 167.7 m" annotation(
+    Placement(transformation(origin = {360, -76}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
 
   DHNPipe pipe_f_g(
     redeclare package Medium = Medium,
     length         = 189.2,
-    d_inner        = 0.0282,
-    dIns           = 0.02815,
+    d_inner        = 0.0717,
+    dIns           = 0.03195,
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
     TGround        = TGround)
-    "Ring: f to g — DN25, 189.2 m" annotation(
-    Placement(transformation(origin = {280, 100}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
+    "Ring: f to g — DN65, 189.2 m" annotation(
+    Placement(transformation(origin = {360, 120}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
 
   DHNPipe pipe_g_h(
     redeclare package Medium = Medium,
     length         = 108.7,
-    d_inner        = 0.0282,
-    dIns           = 0.02815,
+    d_inner        = 0.0717,
+    dIns           = 0.03195,
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
     TGround        = TGround)
-    "Ring: g to h — DN25, 108.7 m" annotation(
-    Placement(transformation(origin = {100, 200}, extent = {{20, -20}, {-20, 20}})));
+    "Ring: g to h — DN65, 108.7 m" annotation(
+    Placement(transformation(origin = {220, 240}, extent = {{20, 20}, {-20, -20}}, rotation = -0)));
 
   DHNPipe pipe_h_src(
     redeclare package Medium = Medium,
     length         = 142.2,
-    d_inner        = 0.0282,
-    dIns           = 0.02815,
+    d_inner        = 0.0717,
+    dIns           = 0.03195,
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
     TGround        = TGround)
-    "Ring: h to src — DN25, 142.2 m" annotation(
-    Placement(transformation(origin = {-20, 200}, extent = {{20, -20}, {-20, 20}})));
+    "Ring: h to src — DN65, 142.2 m" annotation(
+    Placement(transformation(origin = {20, 240}, extent = {{20, -20}, {-20, 20}})));
 
   // ---------------------------------------------------------------
   // Branch pipes to substations (10 segments, all DN25)
@@ -223,7 +220,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch a to sub1 — DN25, 103.0 m" annotation(
-    Placement(transformation(origin = {-240, 60}, extent = {{20, -20}, {-20, 20}})));
+    Placement(transformation(origin = {-240, 100}, extent = {{20, -20}, {-20, 20}})));
 
   DHNPipe pipe_a_sub2(
     redeclare package Medium = Medium,
@@ -235,7 +232,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch a to sub2 — DN25, 121.9 m" annotation(
-    Placement(transformation(origin = {0, 60}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {0, 100}, extent = {{-20, -20}, {20, 20}})));
 
   DHNPipe pipe_b_sub3(
     redeclare package Medium = Medium,
@@ -247,7 +244,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch b to sub3 — DN25, 150.5 m" annotation(
-    Placement(transformation(origin = {-280, -60}, extent = {{20, -20}, {-20, 20}})));
+    Placement(transformation(origin = {-200, -70}, extent = {{20, -20}, {-20, 20}})));
 
   DHNPipe pipe_b_sub4(
     redeclare package Medium = Medium,
@@ -259,7 +256,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch b to sub4 — DN25, 102.7 m" annotation(
-    Placement(transformation(origin = {0, -60}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {-40, -110}, extent = {{-20, -20}, {20, 20}})));
 
   DHNPipe pipe_d_sub5(
     redeclare package Medium = Medium,
@@ -271,7 +268,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch d to sub5 — DN25, 119.9 m" annotation(
-    Placement(transformation(origin = {100, -160}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
+    Placement(transformation(origin = {100, -150}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
 
   DHNPipe pipe_d_sub6(
     redeclare package Medium = Medium,
@@ -283,7 +280,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch d to sub6 — DN25, 165.0 m" annotation(
-    Placement(transformation(origin = {100, -300}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
+    Placement(transformation(origin = {152, -270}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
   DHNPipe pipe_f_sub7(
     redeclare package Medium = Medium,
@@ -295,7 +292,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch f to sub7 — DN25, 154.5 m" annotation(
-    Placement(transformation(origin = {160, 0}, extent = {{20, -20}, {-20, 20}})));
+    Placement(transformation(origin = {280, 52}, extent = {{20, -20}, {-20, 20}})));
 
   DHNPipe pipe_f_sub8(
     redeclare package Medium = Medium,
@@ -307,7 +304,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch f to sub8 — DN25, 122.0 m" annotation(
-    Placement(transformation(origin = {400, 0}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {440, -6}, extent = {{-20, -20}, {20, 20}})));
 
   DHNPipe pipe_h_sub9(
     redeclare package Medium = Medium,
@@ -319,7 +316,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch h to sub9 — DN25, 158.9 m" annotation(
-    Placement(transformation(origin = {100, 320}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
+    Placement(transformation(origin = {100, 300}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
 
   DHNPipe pipe_h_sub10(
     redeclare package Medium = Medium,
@@ -331,7 +328,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch h to sub10 — DN25, 180.9 m" annotation(
-    Placement(transformation(origin = {100, 120}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
+    Placement(transformation(origin = {152, 180}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
   // ---------------------------------------------------------------
   // Junctions — node a (degree 4: ring_in, ring_out, sub1, sub2)
@@ -340,13 +337,13 @@ model DHN_THV_3G_L_S_BASE
     redeclare package Medium = Medium,
     m_flow_nominal = m_ring)
     "Junction a1: splits toward sub1 and remainder" annotation(
-    Placement(transformation(origin = {-120, 40}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
+    Placement(transformation(origin = {-120, 80}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
   DHNJunction jun_a2(
     redeclare package Medium = Medium,
     m_flow_nominal = m_ring - m_sub)
     "Junction a2: splits toward sub2 and ring_a_b" annotation(
-    Placement(transformation(origin = {-120, 0}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
+    Placement(transformation(origin = {-120, 40}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
   // ---------------------------------------------------------------
   // Junctions — node b (degree 4: ring_in, ring_out, sub3, sub4)
@@ -355,13 +352,13 @@ model DHN_THV_3G_L_S_BASE
     redeclare package Medium = Medium,
     m_flow_nominal = m_ring)
     "Junction b1: splits toward sub3 and remainder" annotation(
-    Placement(transformation(origin = {-120, -80}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
+    Placement(transformation(origin = {-120, -72}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
   DHNJunction jun_b2(
     redeclare package Medium = Medium,
     m_flow_nominal = m_ring - m_sub)
     "Junction b2: splits toward sub4 and ring_b_c" annotation(
-    Placement(transformation(origin = {-120, -120}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
+    Placement(transformation(origin = {-120, -112}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
   // ---------------------------------------------------------------
   // Junctions — node d (degree 4: ring_in, ring_out, sub5, sub6)
@@ -370,13 +367,13 @@ model DHN_THV_3G_L_S_BASE
     redeclare package Medium = Medium,
     m_flow_nominal = m_ring)
     "Junction d1: splits toward sub5 and remainder" annotation(
-    Placement(transformation(origin = {100, -200}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {100, -210}, extent = {{-20, -20}, {20, 20}})));
 
   DHNJunction jun_d2(
     redeclare package Medium = Medium,
     m_flow_nominal = m_ring - m_sub)
     "Junction d2: splits toward sub6 and ring_d_e" annotation(
-    Placement(transformation(origin = {100, -240}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {152, -210}, extent = {{-20, -20}, {20, 20}})));
 
   // ---------------------------------------------------------------
   // Junctions — node f (degree 4: ring_in, ring_out, sub7, sub8)
@@ -385,13 +382,13 @@ model DHN_THV_3G_L_S_BASE
     redeclare package Medium = Medium,
     m_flow_nominal = m_ring)
     "Junction f1: splits toward sub7 and remainder" annotation(
-    Placement(transformation(origin = {280, 20}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {360, 52}, extent = {{-20, -20}, {20, 20}})));
 
   DHNJunction jun_f2(
     redeclare package Medium = Medium,
     m_flow_nominal = m_ring - m_sub)
     "Junction f2: splits toward sub8 and ring_f_g" annotation(
-    Placement(transformation(origin = {280, -20}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {360, -6}, extent = {{-20, -20}, {20, 20}})));
 
   // ---------------------------------------------------------------
   // Junctions — node h (degree 4: ring_in, ring_out, sub9, sub10)
@@ -406,7 +403,7 @@ model DHN_THV_3G_L_S_BASE
     redeclare package Medium = Medium,
     m_flow_nominal = m_ring - m_sub)
     "Junction h2: splits toward sub10 and ring_h_src" annotation(
-    Placement(transformation(origin = {100, 200}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {152, 240}, extent = {{-20, -20}, {20, 20}})));
 
   // ---------------------------------------------------------------
   // ETS substations (10 instances)
@@ -421,7 +418,7 @@ model DHN_THV_3G_L_S_BASE
     each THeaWatRet_nominal = THeaWatRet_nominal,
     each dTDis_nominal      = dTDis_nominal)
     "ETS substations 1..10" annotation(
-    Placement(transformation(origin = {560, 0}, extent = {{-16, -16}, {16, 16}})));
+    Placement(transformation(origin = {560, 40}, extent = {{-16, -16}, {16, 16}})));
 
 equation
 
