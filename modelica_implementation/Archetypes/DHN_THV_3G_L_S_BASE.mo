@@ -205,7 +205,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_ring,
     TGround        = TGround)
     "Ring: h to src — DN65, 142.2 m" annotation(
-    Placement(transformation(origin = {20, 240}, extent = {{20, -20}, {-20, 20}})));
+    Placement(transformation(origin = {20, 240}, extent = {{20, 20}, {-20, -20}}, rotation = -0)));
 
   // ---------------------------------------------------------------
   // Branch pipes to substations (10 segments, all DN25)
@@ -220,7 +220,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch a to sub1 — DN25, 103.0 m" annotation(
-    Placement(transformation(origin = {-240, 100}, extent = {{20, -20}, {-20, 20}})));
+    Placement(transformation(origin = {-200, 80}, extent = {{20, 20}, {-20, -20}})));
 
   DHNPipe pipe_a_sub2(
     redeclare package Medium = Medium,
@@ -232,7 +232,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch a to sub2 — DN25, 121.9 m" annotation(
-    Placement(transformation(origin = {0, 100}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {-40, 40}, extent = {{-20, 20}, {20, -20}}, rotation = -0)));
 
   DHNPipe pipe_b_sub3(
     redeclare package Medium = Medium,
@@ -244,7 +244,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch b to sub3 — DN25, 150.5 m" annotation(
-    Placement(transformation(origin = {-200, -70}, extent = {{20, -20}, {-20, 20}})));
+    Placement(transformation(origin = {-200, -70}, extent = {{20, 20}, {-20, -20}}, rotation = -0)));
 
   DHNPipe pipe_b_sub4(
     redeclare package Medium = Medium,
@@ -256,7 +256,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch b to sub4 — DN25, 102.7 m" annotation(
-    Placement(transformation(origin = {-40, -110}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {-40, -112}, extent = {{-20, 20}, {20, -20}}, rotation = -0)));
 
   DHNPipe pipe_d_sub5(
     redeclare package Medium = Medium,
@@ -268,7 +268,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch d to sub5 — DN25, 119.9 m" annotation(
-    Placement(transformation(origin = {100, -150}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
+    Placement(transformation(origin = {100, -164}, extent = {{20, -20}, {-20, 20}}, rotation = -90)));
 
   DHNPipe pipe_d_sub6(
     redeclare package Medium = Medium,
@@ -292,7 +292,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch f to sub7 — DN25, 154.5 m" annotation(
-    Placement(transformation(origin = {280, 52}, extent = {{20, -20}, {-20, 20}})));
+    Placement(transformation(origin = {280, -6}, extent = {{20, -20}, {-20, 20}})));
 
   DHNPipe pipe_f_sub8(
     redeclare package Medium = Medium,
@@ -304,7 +304,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch f to sub8 — DN25, 122.0 m" annotation(
-    Placement(transformation(origin = {440, -6}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {440, 52}, extent = {{-20, -20}, {20, 20}})));
 
   DHNPipe pipe_h_sub9(
     redeclare package Medium = Medium,
@@ -316,7 +316,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_sub,
     TGround        = TGround)
     "Branch h to sub9 — DN25, 158.9 m" annotation(
-    Placement(transformation(origin = {100, 300}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
+    Placement(transformation(origin = {100, 300}, extent = {{20, -20}, {-20, 20}}, rotation = -90)));
 
   DHNPipe pipe_h_sub10(
     redeclare package Medium = Medium,
@@ -382,13 +382,13 @@ model DHN_THV_3G_L_S_BASE
     redeclare package Medium = Medium,
     m_flow_nominal = m_ring)
     "Junction f1: splits toward sub7 and remainder" annotation(
-    Placement(transformation(origin = {360, 52}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {360, 52}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
 
   DHNJunction jun_f2(
     redeclare package Medium = Medium,
     m_flow_nominal = m_ring - m_sub)
     "Junction f2: splits toward sub8 and ring_f_g" annotation(
-    Placement(transformation(origin = {360, -6}, extent = {{-20, -20}, {20, 20}})));
+    Placement(transformation(origin = {360, -6}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
 
   // ---------------------------------------------------------------
   // Junctions — node h (degree 4: ring_in, ring_out, sub9, sub10)
@@ -404,6 +404,57 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_ring - m_sub)
     "Junction h2: splits toward sub10 and ring_h_src" annotation(
     Placement(transformation(origin = {152, 240}, extent = {{-20, -20}, {20, 20}})));
+   
+  // ---------------------------------------------------------------
+  // Junctions — node c, e, g
+  // ---------------------------------------------------------------
+  Buildings.Fluid.FixedResistances.PressureDrop junSup_c (
+  redeclare package Medium = Medium,
+    m_flow_nominal = m_ring,
+    dp_nominal     = 610,
+    allowFlowReversal = true)
+    "90-deg bend at node c" annotation(
+    Placement(transformation(origin = {-52, -200}, extent = {{-20, -20}, {20, 20}})));
+  
+    Buildings.Fluid.FixedResistances.PressureDrop junRet_c (
+  redeclare package Medium = Medium,
+    m_flow_nominal = m_ring,
+    dp_nominal     = 610,
+    allowFlowReversal = true)
+    "90-deg bend at node c" annotation(
+    Placement(transformation(origin = {-52, -220}, extent = {{20, -20}, {-20, 20}})));
+
+  Buildings.Fluid.FixedResistances.PressureDrop junSup_e (
+  redeclare package Medium = Medium,
+    m_flow_nominal = m_ring,
+    dp_nominal     = 610,
+    allowFlowReversal = true)
+    "90-deg bend at node e" annotation(
+    Placement(transformation(origin = {320, -200}, extent = {{-20, -20}, {20, 20}})));
+  
+  Buildings.Fluid.FixedResistances.PressureDrop junRet_e (
+  redeclare package Medium = Medium,
+    m_flow_nominal = m_ring,
+    dp_nominal     = 610,
+    allowFlowReversal = true)
+    "90-deg bend at node e" annotation(
+    Placement(transformation(origin = {320, -220}, extent = {{20, -20}, {-20, 20}})));
+
+    Buildings.Fluid.FixedResistances.PressureDrop junSup_g (
+  redeclare package Medium = Medium,
+    m_flow_nominal = m_ring,
+    dp_nominal     = 610,
+    allowFlowReversal = true)
+    "90-deg bend at node g" annotation(
+    Placement(transformation(origin = {348, 200}, extent = {{-20, 20}, {20, -20}}, rotation = 90)));
+
+  Buildings.Fluid.FixedResistances.PressureDrop junRet_g (
+  redeclare package Medium = Medium,
+    m_flow_nominal = m_ring,
+    dp_nominal     = 610,
+    allowFlowReversal = true)
+    "90-deg bend at node g" annotation(
+    Placement(transformation(origin = {372, 200}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
   // ---------------------------------------------------------------
   // ETS substations (10 instances)
@@ -418,142 +469,225 @@ model DHN_THV_3G_L_S_BASE
     each THeaWatRet_nominal = THeaWatRet_nominal,
     each dTDis_nominal      = dTDis_nominal)
     "ETS substations 1..10" annotation(
-    Placement(transformation(origin = {560, 40}, extent = {{-16, -16}, {16, 16}})));
-
-equation
-
-  // ---------------------------------------------------------------
-  // Plant → source junction
-  // ---------------------------------------------------------------
-  connect(src.port_bDis,        jun_src.port_aSupIn);
-  connect(jun_src.port_bSupOut1, pipe_src_a.port_aDisSup);
-  connect(jun_src.port_bSupOut2, pipe_h_src.port_bDisSup);
-  connect(pipe_src_a.port_bDisRet, jun_src.port_aRetIn1);
-  connect(pipe_h_src.port_bDisRet, jun_src.port_aRetIn2);
-  connect(jun_src.port_bRetOut,  src.port_aDis);
+    Placement(transformation(origin = {558, 24}, extent = {{-16, -16}, {16, 16}})));
+  
+  equation
 
   // ---------------------------------------------------------------
-  // Ring: src_a → node a
+  // Source
   // ---------------------------------------------------------------
-  connect(pipe_src_a.port_bDisSup,  jun_a1.port_aSupIn);
-  connect(jun_a1.port_bRetOut,      pipe_src_a.port_aDisRet);
-  connect(jun_a1.port_bSupOut2,     pipe_a_sub1.port_aDisSup);
-  connect(pipe_a_sub1.port_bDisRet, jun_a1.port_aRetIn2);
-  connect(jun_a1.port_bSupOut1,     jun_a2.port_aSupIn);
-  connect(jun_a2.port_bRetOut,      jun_a1.port_aRetIn1);
-  connect(jun_a2.port_bSupOut2,     pipe_a_sub2.port_aDisSup);
-  connect(pipe_a_sub2.port_bDisRet, jun_a2.port_aRetIn2);
-  connect(jun_a2.port_bSupOut1,     pipe_a_b.port_aDisSup);
-  connect(pipe_a_b.port_bDisRet,    jun_a2.port_aRetIn1);
+  connect(src.port_bDis, jun_src.port_aSupIn) annotation(
+    Line(points = {{-180, 244}, {-132, 244}, {-132, 246}}, color = {0, 127, 255}));
+  connect(jun_src.port_bRetOut, src.port_aDis) annotation(
+    Line(points = {{-132, 234}, {-180, 234}, {-180, 236}}, color = {0, 127, 255}));
+  connect(jun_src.port_bSupOut1, pipe_h_src.port_aDisRet) annotation(
+    Line(points = {{-108, 246}, {0, 246}}, color = {0, 127, 255}));
+  connect(pipe_h_src.port_bDisSup, jun_src.port_aRetIn1) annotation(
+    Line(points = {{0, 234}, {-108, 234}}, color = {0, 127, 255}));
+  connect(jun_src.port_bSupOut2, pipe_src_a.port_aDisSup) annotation(
+    Line(points = {{-114, 228}, {-114, 160}}, color = {0, 127, 255}));
+  connect(pipe_src_a.port_bDisRet, jun_src.port_aRetIn2) annotation(
+    Line(points = {{-126, 160}, {-126, 228}}, color = {0, 127, 255}));
+  
+  // ---------------------------------------------------------------
+  // Node a
+  // ---------------------------------------------------------------
+  connect(pipe_src_a.port_bDisSup, jun_a1.port_aSupIn) annotation(
+    Line(points = {{-114, 120}, {-114, 92}}, color = {0, 127, 255}));
+  connect(jun_a1.port_bRetOut, pipe_src_a.port_aDisRet) annotation(
+    Line(points = {{-126, 92}, {-126, 120}}, color = {0, 127, 255}));
+  connect(jun_a1.port_bSupOut2, pipe_a_sub1.port_aDisSup) annotation(
+    Line(points = {{-132, 74}, {-180, 74}}, color = {0, 127, 255}));
+  connect(pipe_a_sub1.port_bDisRet, jun_a1.port_aRetIn2) annotation(
+    Line(points = {{-180, 86}, {-132, 86}}, color = {0, 127, 255}));
+  connect(jun_a1.port_bSupOut1, jun_a2.port_aSupIn) annotation(
+    Line(points = {{-114, 68}, {-114, 52}}, color = {0, 127, 255}));
+  connect(jun_a2.port_bRetOut, jun_a1.port_aRetIn1) annotation(
+    Line(points = {{-126, 52}, {-126, 68}}, color = {0, 127, 255}));
+  connect(jun_a2.port_bSupOut2, pipe_a_sub2.port_aDisSup) annotation(
+    Line(points = {{-132, 34}, {-60, 34}}, color = {0, 127, 255}));
+  connect(pipe_a_sub2.port_bDisRet, jun_a2.port_aRetIn2) annotation(
+    Line(points = {{-60, 46}, {-132, 46}}, color = {0, 127, 255}));
+  connect(jun_a2.port_bSupOut1, pipe_a_b.port_aDisSup) annotation(
+    Line(points = {{-114, 28}, {-114, 6}}, color = {0, 127, 255}));
+  connect(pipe_a_b.port_bDisRet, jun_a2.port_aRetIn1) annotation(
+    Line(points = {{-126, 6}, {-126, 28}}, color = {0, 127, 255}));
+  
+  // ---------------------------------------------------------------
+  // Node b
+  // ---------------------------------------------------------------
+  connect(pipe_a_b.port_bDisSup, jun_b1.port_aSupIn) annotation(
+    Line(points = {{-114, -34}, {-114, -60}}, color = {0, 127, 255}));
+  connect(jun_b1.port_bRetOut, pipe_a_b.port_aDisRet) annotation(
+    Line(points = {{-126, -60}, {-126, -34}}, color = {0, 127, 255}));
+  connect(jun_b1.port_bSupOut2, pipe_b_sub3.port_aDisSup) annotation(
+    Line(points = {{-132, -78}, {-180, -78}, {-180, -76}}, color = {0, 127, 255}));
+  connect(pipe_b_sub3.port_bDisRet, jun_b1.port_aRetIn2) annotation(
+    Line(points = {{-180, -64}, {-132, -64}, {-132, -66}}, color = {0, 127, 255}));
+  connect(jun_b1.port_bSupOut1, jun_b2.port_aSupIn) annotation(
+    Line(points = {{-114, -84}, {-114, -100}}, color = {0, 127, 255}));
+  connect(jun_b2.port_bRetOut, jun_b1.port_aRetIn1) annotation(
+    Line(points = {{-126, -100}, {-126, -84}}, color = {0, 127, 255}));
+  connect(jun_b2.port_bSupOut2, pipe_b_sub4.port_aDisSup) annotation(
+    Line(points = {{-132, -118}, {-60, -118}}, color = {0, 127, 255}));
+  connect(pipe_b_sub4.port_bDisRet, jun_b2.port_aRetIn2) annotation(
+    Line(points = {{-60, -106}, {-132, -106}}, color = {0, 127, 255}));
+  connect(jun_b2.port_bSupOut1, pipe_b_c.port_aDisSup) annotation(
+    Line(points = {{-114, -124}, {-114, -140}}, color = {0, 127, 255}));
+  connect(pipe_b_c.port_bDisRet, jun_b2.port_aRetIn1) annotation(
+    Line(points = {{-126, -140}, {-126, -124}}, color = {0, 127, 255}));
+  
+  // ---------------------------------------------------------------
+  // Node c
+  // ---------------------------------------------------------------
+  connect(pipe_b_c.port_bDisSup, junSup_c.port_a) annotation(
+    Line(points = {{-114, -180}, {-114, -200}, {-72, -200}}, color = {0, 127, 255}));
+  connect(junRet_c.port_b, pipe_b_c.port_aDisRet) annotation(
+    Line(points = {{-72, -220}, {-126, -220}, {-126, -180}}, color = {0, 127, 255}));
+  connect(junSup_c.port_b, pipe_c_d.port_aDisSup) annotation(
+    Line(points = {{-32, -200}, {-14, -200}, {-14, -204}, {0, -204}}, color = {0, 127, 255}));
+  connect(pipe_c_d.port_bDisRet, junRet_c.port_a) annotation(
+    Line(points = {{0, -216}, {-14, -216}, {-14, -220}, {-32, -220}}, color = {0, 127, 255}));
+  
+  // ---------------------------------------------------------------
+  // Node d
+  // ---------------------------------------------------------------
+  connect(pipe_c_d.port_bDisSup, jun_d1.port_aSupIn) annotation(
+    Line(points = {{40, -204}, {88, -204}}, color = {0, 127, 255}));
+  connect(jun_d1.port_bRetOut, pipe_c_d.port_aDisRet) annotation(
+    Line(points = {{88, -216}, {40, -216}}, color = {0, 127, 255}));
+  connect(jun_d1.port_bSupOut2, pipe_d_sub5.port_aDisSup) annotation(
+    Line(points = {{106, -222}, {106, -184}}, color = {0, 127, 255}));
+  connect(pipe_d_sub5.port_bDisRet, jun_d1.port_aRetIn2) annotation(
+    Line(points = {{94, -184}, {94, -222}}, color = {0, 127, 255}));
+  connect(jun_d1.port_bSupOut1, jun_d2.port_aSupIn) annotation(
+    Line(points = {{112, -204}, {140, -204}}, color = {0, 127, 255}));
+  connect(jun_d2.port_bRetOut, jun_d1.port_aRetIn1) annotation(
+    Line(points = {{140, -216}, {112, -216}}, color = {0, 127, 255}));
+  connect(jun_d2.port_bSupOut2, pipe_d_sub6.port_aDisSup) annotation(
+    Line(points = {{158, -222}, {158, -250}}, color = {0, 127, 255}));
+  connect(pipe_d_sub6.port_bDisRet, jun_d2.port_aRetIn2) annotation(
+    Line(points = {{146, -250}, {146, -222}}, color = {0, 127, 255}));
+  connect(jun_d2.port_bSupOut1, pipe_d_e.port_aDisSup) annotation(
+    Line(points = {{164, -204}, {200, -204}}, color = {0, 127, 255}));
+  connect(pipe_d_e.port_bDisRet, jun_d2.port_aRetIn1) annotation(
+    Line(points = {{200, -216}, {164, -216}}, color = {0, 127, 255}));
+  
+  // ---------------------------------------------------------------
+  // Node e
+  // ---------------------------------------------------------------
+  connect(pipe_d_e.port_bDisSup, junSup_e.port_a) annotation(
+    Line(points = {{240, -204}, {274, -204}, {274, -200}, {300, -200}}, color = {0, 127, 255}));
+  connect(junRet_e.port_b, pipe_d_e.port_aDisRet) annotation(
+    Line(points = {{300, -220}, {274, -220}, {274, -216}, {240, -216}}, color = {0, 127, 255}));
+  connect(junSup_e.port_b, pipe_e_f.port_aDisSup) annotation(
+    Line(points = {{340, -200}, {354, -200}, {354, -96}}, color = {0, 127, 255}));
+  connect(pipe_e_f.port_bDisRet, junRet_e.port_a) annotation(
+    Line(points = {{366, -96}, {366, -220}, {340, -220}}, color = {0, 127, 255}));
 
   // ---------------------------------------------------------------
-  // Ring: a_b → node b
+  // Node f
   // ---------------------------------------------------------------
-  connect(pipe_a_b.port_bDisSup,    jun_b1.port_aSupIn);
-  connect(jun_b1.port_bRetOut,      pipe_a_b.port_aDisRet);
-  connect(jun_b1.port_bSupOut2,     pipe_b_sub3.port_aDisSup);
-  connect(pipe_b_sub3.port_bDisRet, jun_b1.port_aRetIn2);
-  connect(jun_b1.port_bSupOut1,     jun_b2.port_aSupIn);
-  connect(jun_b2.port_bRetOut,      jun_b1.port_aRetIn1);
-  connect(jun_b2.port_bSupOut2,     pipe_b_sub4.port_aDisSup);
-  connect(pipe_b_sub4.port_bDisRet, jun_b2.port_aRetIn2);
-  connect(jun_b2.port_bSupOut1,     pipe_b_c.port_aDisSup);
-  connect(pipe_b_c.port_bDisRet,    jun_b2.port_aRetIn1);
-
+  connect(pipe_e_f.port_bDisSup, jun_f2.port_aSupIn) annotation(
+    Line(points = {{354, -56}, {354, -18}}, color = {0, 127, 255}));
+  connect(jun_f2.port_bRetOut, pipe_e_f.port_aDisRet) annotation(
+    Line(points = {{366, -18}, {366, -56}}, color = {0, 127, 255}));
+  connect(jun_f2.port_bSupOut2, pipe_f_sub7.port_aDisSup) annotation(
+    Line(points = {{372, 0}, {300, 0}}, color = {0, 127, 255}));
+  connect(pipe_f_sub7.port_bDisRet, jun_f2.port_aRetIn2) annotation(
+    Line(points = {{300, -12}, {372, -12}}, color = {0, 127, 255}));
+  connect(jun_f2.port_bSupOut1, jun_f1.port_aSupIn) annotation(
+    Line(points = {{354, 6}, {354, 40}}, color = {0, 127, 255}));
+  connect(jun_f1.port_bRetOut, jun_f2.port_aRetIn1) annotation(
+    Line(points = {{366, 40}, {366, 6}}, color = {0, 127, 255}));
+  connect(jun_f1.port_bSupOut2, pipe_f_sub8.port_aDisSup) annotation(
+    Line(points = {{372, 58}, {420, 58}}, color = {0, 127, 255}));
+  connect(pipe_f_sub8.port_bDisRet, jun_f1.port_aRetIn2) annotation(
+    Line(points = {{420, 46}, {372, 46}}, color = {0, 127, 255}));
+  connect(jun_f1.port_bSupOut1, pipe_f_g.port_aDisSup) annotation(
+    Line(points = {{354, 64}, {354, 100}}, color = {0, 127, 255}));
+  connect(pipe_f_g.port_bDisRet, jun_f1.port_aRetIn1) annotation(
+    Line(points = {{366, 100}, {366, 64}}, color = {0, 127, 255}));
+  
   // ---------------------------------------------------------------
-  // Ring: b_c → c → c_d (node c has degree 2, no ETS)
+  // Node g
   // ---------------------------------------------------------------
-  connect(pipe_b_c.port_bDisSup,  pipe_c_d.port_aDisSup);
-  connect(pipe_c_d.port_bDisRet,  pipe_b_c.port_aDisRet);
-
+  connect(pipe_f_g.port_bDisSup, junSup_g.port_a) annotation(
+    Line(points = {{354, 140}, {354, 160}, {348, 160}, {348, 180}}, color = {0, 127, 255}));
+  connect(junRet_g.port_b, pipe_f_g.port_aDisRet) annotation(
+    Line(points = {{372, 180}, {372, 160}, {366, 160}, {366, 140}}, color = {0, 127, 255}));
+  connect(junSup_g.port_b, pipe_g_h.port_aDisSup) annotation(
+    Line(points = {{348, 220}, {348, 234}, {240, 234}}, color = {0, 127, 255}));
+  connect(pipe_g_h.port_bDisRet, junRet_g.port_a) annotation(
+    Line(points = {{240, 246}, {372, 246}, {372, 220}}, color = {0, 127, 255}));
+  
   // ---------------------------------------------------------------
-  // Ring: c_d → node d
+  // Node h
   // ---------------------------------------------------------------
-  connect(pipe_c_d.port_bDisSup,    jun_d1.port_aSupIn);
-  connect(jun_d1.port_bRetOut,      pipe_c_d.port_aDisRet);
-  connect(jun_d1.port_bSupOut2,     pipe_d_sub5.port_aDisSup);
-  connect(pipe_d_sub5.port_bDisRet, jun_d1.port_aRetIn2);
-  connect(jun_d1.port_bSupOut1,     jun_d2.port_aSupIn);
-  connect(jun_d2.port_bRetOut,      jun_d1.port_aRetIn1);
-  connect(jun_d2.port_bSupOut2,     pipe_d_sub6.port_aDisSup);
-  connect(pipe_d_sub6.port_bDisRet, jun_d2.port_aRetIn2);
-  connect(jun_d2.port_bSupOut1,     pipe_d_e.port_aDisSup);
-  connect(pipe_d_e.port_bDisRet,    jun_d2.port_aRetIn1);
-
-  // ---------------------------------------------------------------
-  // Ring: d_e → e → e_f (node e has degree 2, no ETS)
-  // ---------------------------------------------------------------
-  connect(pipe_d_e.port_bDisSup,  pipe_e_f.port_aDisSup);
-  connect(pipe_e_f.port_bDisRet,  pipe_d_e.port_aDisRet);
-
-  // ---------------------------------------------------------------
-  // Ring: e_f → node f
-  // ---------------------------------------------------------------
-  connect(pipe_e_f.port_bDisSup,    jun_f1.port_aSupIn);
-  connect(jun_f1.port_bRetOut,      pipe_e_f.port_aDisRet);
-  connect(jun_f1.port_bSupOut2,     pipe_f_sub7.port_aDisSup);
-  connect(pipe_f_sub7.port_bDisRet, jun_f1.port_aRetIn2);
-  connect(jun_f1.port_bSupOut1,     jun_f2.port_aSupIn);
-  connect(jun_f2.port_bRetOut,      jun_f1.port_aRetIn1);
-  connect(jun_f2.port_bSupOut2,     pipe_f_sub8.port_aDisSup);
-  connect(pipe_f_sub8.port_bDisRet, jun_f2.port_aRetIn2);
-  connect(jun_f2.port_bSupOut1,     pipe_f_g.port_aDisSup);
-  connect(pipe_f_g.port_bDisRet,    jun_f2.port_aRetIn1);
-
-  // ---------------------------------------------------------------
-  // Ring: f_g → g → g_h (node g has degree 2, no ETS)
-  // ---------------------------------------------------------------
-  connect(pipe_f_g.port_bDisSup,  pipe_g_h.port_aDisSup);
-  connect(pipe_g_h.port_bDisRet,  pipe_f_g.port_aDisRet);
-
-  // ---------------------------------------------------------------
-  // Ring: g_h → node h
-  // ---------------------------------------------------------------
-  connect(pipe_g_h.port_bDisSup,     jun_h1.port_aSupIn);
-  connect(jun_h1.port_bRetOut,       pipe_g_h.port_aDisRet);
-  connect(jun_h1.port_bSupOut2,      pipe_h_sub9.port_aDisSup);
-  connect(pipe_h_sub9.port_bDisRet,  jun_h1.port_aRetIn2);
-  connect(jun_h1.port_bSupOut1,      jun_h2.port_aSupIn);
-  connect(jun_h2.port_bRetOut,       jun_h1.port_aRetIn1);
-  connect(jun_h2.port_bSupOut2,      pipe_h_sub10.port_aDisSup);
-  connect(pipe_h_sub10.port_bDisRet, jun_h2.port_aRetIn2);
-  connect(jun_h2.port_bSupOut1,      pipe_h_src.port_aDisSup);
-  connect(pipe_h_src.port_bDisRet,   jun_h2.port_aRetIn1);
-
-  // ---------------------------------------------------------------
-  // Branch pipes → ETS substations
-  // ---------------------------------------------------------------
-  connect(pipe_a_sub1.port_bDisSup,  ets[1].port_aSerHea);
-  connect(ets[1].port_bSerHea,       pipe_a_sub1.port_aDisRet);
-
-  connect(pipe_a_sub2.port_bDisSup,  ets[2].port_aSerHea);
-  connect(ets[2].port_bSerHea,       pipe_a_sub2.port_aDisRet);
-
-  connect(pipe_b_sub3.port_bDisSup,  ets[3].port_aSerHea);
-  connect(ets[3].port_bSerHea,       pipe_b_sub3.port_aDisRet);
-
-  connect(pipe_b_sub4.port_bDisSup,  ets[4].port_aSerHea);
-  connect(ets[4].port_bSerHea,       pipe_b_sub4.port_aDisRet);
-
-  connect(pipe_d_sub5.port_bDisSup,  ets[5].port_aSerHea);
-  connect(ets[5].port_bSerHea,       pipe_d_sub5.port_aDisRet);
-
-  connect(pipe_d_sub6.port_bDisSup,  ets[6].port_aSerHea);
-  connect(ets[6].port_bSerHea,       pipe_d_sub6.port_aDisRet);
-
-  connect(pipe_f_sub7.port_bDisSup,  ets[7].port_aSerHea);
-  connect(ets[7].port_bSerHea,       pipe_f_sub7.port_aDisRet);
-
-  connect(pipe_f_sub8.port_bDisSup,  ets[8].port_aSerHea);
-  connect(ets[8].port_bSerHea,       pipe_f_sub8.port_aDisRet);
-
-  connect(pipe_h_sub9.port_bDisSup,  ets[9].port_aSerHea);
-  connect(ets[9].port_bSerHea,       pipe_h_sub9.port_aDisRet);
-
-  connect(pipe_h_sub10.port_bDisSup, ets[10].port_aSerHea);
-  connect(ets[10].port_bSerHea,      pipe_h_sub10.port_aDisRet);
-
-  annotation(
+  connect(pipe_h_src.port_bDisRet, jun_h1.port_aSupIn) annotation(
+    Line(points = {{40, 246}, {88, 246}}, color = {0, 127, 255}));
+  connect(jun_h1.port_bRetOut, pipe_h_src.port_aDisSup) annotation(
+    Line(points = {{88, 234}, {40, 234}}, color = {0, 127, 255}));
+  connect(jun_h1.port_bSupOut2, pipe_h_sub9.port_aDisSup) annotation(
+    Line(points = {{106, 228}, {106, 280}}, color = {0, 127, 255}));
+  connect(pipe_h_sub9.port_bDisRet, jun_h1.port_aRetIn2) annotation(
+    Line(points = {{94, 280}, {94, 228}}, color = {0, 127, 255}));
+  connect(jun_h1.port_bSupOut1, jun_h2.port_aSupIn) annotation(
+    Line(points = {{112, 246}, {140, 246}}, color = {0, 127, 255}));
+  connect(jun_h2.port_bRetOut, jun_h1.port_aRetIn1) annotation(
+    Line(points = {{140, 234}, {112, 234}}, color = {0, 127, 255}));
+  connect(jun_h2.port_bSupOut2, pipe_h_sub10.port_aDisSup) annotation(
+    Line(points = {{158, 228}, {158, 200}}, color = {0, 127, 255}));
+  connect(pipe_h_sub10.port_bDisRet, jun_h2.port_aRetIn2) annotation(
+    Line(points = {{146, 200}, {146, 228}}, color = {0, 127, 255}));
+  connect(jun_h2.port_bSupOut1, pipe_g_h.port_aDisRet) annotation(
+    Line(points = {{164, 246}, {200, 246}}, color = {0, 127, 255}));
+  connect(pipe_g_h.port_bDisSup, jun_h2.port_aRetIn1) annotation(
+    Line(points = {{200, 234}, {164, 234}}, color = {0, 127, 255}));
+// ---------------------------------------------------------------
+// ets
+// ---------------------------------------------------------------
+  connect(pipe_a_sub1.port_bDisSup, ets[1].port_aSerHea) annotation(
+    Line(points = {{-220, 74}, {-260, 74}, {-260, -40}, {520, -40}, {520, 20}, {542, 20}, {542, 22}}, color = {0, 127, 255}));
+ connect(ets[1].port_bSerHea, pipe_a_sub1.port_aDisRet) annotation(
+    Line(points = {{574, 22}, {600, 22}, {600, -46}, {-240, -46}, {-240, 86}, {-220, 86}}, color = {0, 127, 255}));
+ connect(pipe_a_sub2.port_bDisSup, ets[2].port_aSerHea) annotation(
+    Line(points = {{-20, 34}, {0, 34}, {0, -40}, {520, -40}, {520, 22}, {542, 22}}, color = {0, 127, 255}));
+ connect(ets[2].port_bSerHea, pipe_a_sub2.port_aDisRet) annotation(
+    Line(points = {{574, 22}, {600, 22}, {600, -46}, {20, -46}, {20, 46}, {-20, 46}}, color = {0, 127, 255}));
+ connect(pipe_b_sub3.port_bDisSup, ets[3].port_aSerHea) annotation(
+    Line(points = {{-220, -76}, {-240, -76}, {-240, -132}, {520, -132}, {520, 22}, {542, 22}}, color = {0, 127, 255}));
+ connect(ets[3].port_bSerHea, pipe_b_sub3.port_aDisRet) annotation(
+    Line(points = {{574, 22}, {600, 22}, {600, -128}, {-262, -128}, {-262, -64}, {-220, -64}}, color = {0, 127, 255}));
+ connect(pipe_b_sub4.port_bDisSup, ets[4].port_aSerHea) annotation(
+    Line(points = {{-20, -118}, {520, -118}, {520, 20}, {542, 20}, {542, 22}}, color = {0, 127, 255}));
+ connect(ets[4].port_bSerHea, pipe_b_sub4.port_aDisRet) annotation(
+    Line(points = {{574, 22}, {600, 22}, {600, -104}, {-20, -104}, {-20, -106}}, color = {0, 127, 255}));
+ connect(pipe_d_sub5.port_bDisSup, ets[5].port_aSerHea) annotation(
+    Line(points = {{106, -144}, {106, -40}, {520, -40}, {520, 22}, {542, 22}}, color = {0, 127, 255}));
+ connect(ets[5].port_bSerHea, pipe_d_sub5.port_aDisRet) annotation(
+    Line(points = {{574, 22}, {600, 22}, {600, -46}, {94, -46}, {94, -144}}, color = {0, 127, 255}));
+ connect(pipe_d_sub6.port_bDisSup, ets[6].port_aSerHea) annotation(
+    Line(points = {{158, -290}, {158, -320}, {520, -320}, {520, 22}, {542, 22}}, color = {0, 127, 255}));
+ connect(ets[6].port_bSerHea, pipe_d_sub6.port_aDisRet) annotation(
+    Line(points = {{574, 22}, {600, 22}, {600, -300}, {146, -300}, {146, -290}}, color = {0, 127, 255}));
+ connect(pipe_f_sub7.port_bDisSup, ets[7].port_aSerHea) annotation(
+    Line(points = {{260, 0}, {220, 0}, {220, 22}, {542, 22}}, color = {0, 127, 255}));
+ connect(ets[7].port_bSerHea, pipe_f_sub7.port_aDisRet) annotation(
+    Line(points = {{574, 22}, {600, 22}, {600, 44}, {500, 44}, {500, 14}, {240, 14}, {240, -12}, {260, -12}}, color = {0, 127, 255}));
+ connect(pipe_f_sub8.port_bDisSup, ets[8].port_aSerHea) annotation(
+    Line(points = {{460, 58}, {520, 58}, {520, 22}, {542, 22}}, color = {0, 127, 255}));
+ connect(ets[8].port_bSerHea, pipe_f_sub8.port_aDisRet) annotation(
+    Line(points = {{574, 22}, {600, 22}, {600, 46}, {460, 46}}, color = {0, 127, 255}));
+ connect(pipe_h_sub9.port_bDisSup, ets[9].port_aSerHea) annotation(
+    Line(points = {{106, 320}, {106, 360}, {520, 360}, {520, 22}, {542, 22}}, color = {0, 127, 255}));
+ connect(ets[9].port_bSerHea, pipe_h_sub9.port_aDisRet) annotation(
+    Line(points = {{574, 22}, {600, 22}, {600, 340}, {94, 340}, {94, 320}}, color = {0, 127, 255}));
+ connect(pipe_h_sub10.port_bDisSup, ets[10].port_aSerHea) annotation(
+    Line(points = {{158, 160}, {158, 146}, {520, 146}, {520, 22}, {542, 22}}, color = {0, 127, 255}));
+ connect(ets[10].port_bSerHea, pipe_h_sub10.port_aDisRet) annotation(
+    Line(points = {{574, 22}, {600, 22}, {600, 152}, {146, 152}, {146, 160}}, color = {0, 127, 255}));
+ annotation(
     uses(Buildings(version = "13.0.0"), Modelica(version = "4.1.0")),
     experiment(
       StartTime = 0,
