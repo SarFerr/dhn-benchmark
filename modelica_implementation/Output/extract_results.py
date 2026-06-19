@@ -1,245 +1,232 @@
 """
-extract_results.py — general post-processing for DHN benchmark archetypes.
+extract_results.py
+==================
+Post-processing script for DHN benchmark archetypes.
 
-How it works
-------------
-Each custom component exposes a variable name that is unique to its type.
-The script scans the .mat file for these signatures and groups the matches
-by instance name (the part of the variable name before the signature):
+Reads the OpenModelica simulation result file (.mat) and exports
+a single Excel file with one sheet per variable:
 
-    DHNPipe                  -> "<name>.Q_loss_sup"     (any number of pipes,
-                                  any naming scheme, anywhere in the model
-                                  hierarchy, including inside arrays or
-                                  sub-components)
-    BuildingWithIndirectETS  -> "<name>.QHea_flow" AND "<name>.senT_disSup.T"
-                                  together (QHea_flow alone is also produced
-                                  by BuildingTimeSeries internally, so the
-                                  combination disambiguates the ETS wrapper)
-    PlantStation              -> "<name>.senT_ret.T"
+    plant_Q_W          : thermal power from each plant [W]
+    plant_m_flow_kgs   : mass flow rate from each plant [kg/s]
+    plant_T_ret_degC   : return temperature at each plant [degC]
+    plant_T_sup_degC   : supply temperature at each plant [degC]
 
-Usage
------
-    python extract_results.py <path_to_mat_file> [--outdir <folder>]
+    pipe_Q_loss_sup_W  : heat loss in supply pipe [W]
+    pipe_Q_loss_ret_W  : heat loss in return pipe [W]
+    pipe_m_flow_kgs    : mass flow rate in each pipe [kg/s]
+    pipe_p_in_bar      : pressure at pipe inlet [bar]
+    pipe_p_out_bar     : pressure at pipe outlet [bar]
 
-Output (written to <outdir>, default: "results_csv/<archetype_name>/"):
-    plant_results.csv   — one row per plant instance per timestep:
-                           Q [kW], m_flow [kg/s], T_ret/T_sup [degC]
-    pipe_results.csv    — one row per pipe instance per timestep:
-                           Q_loss_sup/ret [kW], m_flow [kg/s], p_in/p_out [bar]
-    ets_results.csv     — one row per substation instance per timestep:
-                           T_sup, T_ret [degC], Q [kW], m_flow [kg/s]
+    ets_T_sup_degC     : district supply temperature at each ETS [degC]
+    ets_T_ret_degC     : district return temperature at each ETS [degC]
+    ets_Q_W            : heating load at each ETS [W]
+    ets_m_flow_kgs     : mass flow rate at each ETS [kg/s]
+
+Works for ANY archetype — auto-detects any number of plants, pipes and ETS.
 """
 
 import sys
 import os
 import re
-import csv
 import argparse
+import openpyxl
 from buildingspy.io.outputfile import Reader
 
-T_K_TO_C = 273.15
+# ===========================================================================
+# DEFAULT PATHS
+# ===========================================================================
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FILE_ARCHETYPE = "DHN_THV_3G_R_S_BASE_res.mat"
 
+DEFAULT_MAT_PATH = os.path.join(BASE_DIR, "Results", "DHN_THV_3G_R_S_BASE", FILE_ARCHETYPE)
+DEFAULT_OUT_DIR  = os.path.join(BASE_DIR, "Results", "DHN_THV_3G_R_S_BASE")
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# UNIT CONVERSION
+# ===========================================================================
+T_K_TO_C  = 273.15
+PA_TO_BAR = 1e5
+
+# ===========================================================================
+# SAFE VARIABLE READER
+# ===========================================================================
 def safe_values(reader, varName):
-    """Return (time, values) for a variable, or (None, None) if not found."""
+    """Return (time, values) or (None, None) if variable not found."""
     try:
         t, v = reader.values(varName)
         return t, v
     except KeyError:
         return None, None
 
-
+# ===========================================================================
+# AUTO-DISCOVERY
+# ===========================================================================
 def discover_instances(reader, signature_suffix):
-    """
-    Return a sorted list of instance names (the prefix before the given
-    signature suffix) for every variable in the .mat file matching that
-    suffix. Works for both scalar instances ("pipe_src_a.Q_loss_sup") and
-    array instances ("ets[3].QHea_flow") since the regex simply strips the
-    fixed suffix from the right.
-    """
+    """Find all component instances by a unique variable signature."""
     pattern = re.escape(signature_suffix) + r"$"
     matches = reader.varNames(pattern)
-    instances = sorted(set(n[: -len(signature_suffix)] for n in matches))
-    return instances
-
-
-def discover_pipes(reader):
-    """DHNPipe instances, identified by the unique '.Q_loss_sup' output."""
-    return discover_instances(reader, ".Q_loss_sup")
-
+    return sorted(set(n[: -len(signature_suffix)] for n in matches))
 
 def discover_plants(reader):
-    """PlantStation instances, identified by the unique '.senT_ret.T' sensor."""
     return discover_instances(reader, ".senT_ret.T")
 
+def discover_pipes(reader):
+    return discover_instances(reader, ".Q_loss_sup")
 
 def discover_ets(reader):
-    """
-    BuildingWithIndirectETS instances, identified by the combination of
-    '.QHea_flow' and '.senT_disSup.T' (the district-side supply sensor we
-    added specifically to this wrapper, disambiguating it from any other
-    component that might also expose a QHea_flow-like signal).
-    """
-    qhea_instances = set(discover_instances(reader, ".QHea_flow"))
-    tsup_instances = set(discover_instances(reader, ".senT_disSup.T"))
-    return sorted(qhea_instances & tsup_instances)
+    qhea = set(discover_instances(reader, ".QHea_flow"))
+    tsup = set(discover_instances(reader, ".senT_disSup.T"))
+    return sorted(qhea & tsup)
 
-
-# ---------------------------------------------------------------------------
-# Extraction routines — one per component type
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# EXTRACTION — returns wide-format data
+# variable_name -> {instance_name -> [values]}
+# ===========================================================================
 def extract_plants(reader, plant_names):
-    rows = []
+    time_vec = None
+    data = {}
     for name in plant_names:
-        t, Q_flow_W = safe_values(reader, f"{name}.Q_flow")
-        _, m_flow   = safe_values(reader, f"{name}.plaHea.m_flow")
-        _, T_ret_K  = safe_values(reader, f"{name}.senT_ret.T")
-        _, T_sup_K  = safe_values(reader, f"{name}.senT_sup.T")
-
+        t, Q_W     = safe_values(reader, f"{name}.Q_flow")
+        _, m_flow  = safe_values(reader, f"{name}.plaHea.m_flow")
+        _, T_ret_K = safe_values(reader, f"{name}.senT_ret.T")
+        _, T_sup_K = safe_values(reader, f"{name}.senT_sup.T")
         if t is None:
+            print(f"  [WARN] Plant '{name}': Q_flow not found, skipping.")
             continue
-
-        for k in range(len(t)):
-            rows.append({
-                "time_s":     t[k],
-                "plant_id":   name,
-                "Q_kW":       Q_flow_W[k] / 1000.0 if Q_flow_W is not None else "",
-                "m_flow_kgs": abs(m_flow[k])       if m_flow   is not None else "",
-                "T_ret_degC": T_ret_K[k] - T_K_TO_C if T_ret_K is not None else "",
-                "T_sup_degC": T_sup_K[k] - T_K_TO_C if T_sup_K is not None else "",
-            })
-    return rows
-
+        if time_vec is None:
+            time_vec = t
+        data.setdefault("Q_W",        {})[name] = Q_W
+        data.setdefault("m_flow_kgs", {})[name] = [abs(v) for v in m_flow]            if m_flow  is not None else None
+        data.setdefault("T_ret_degC", {})[name] = [v - T_K_TO_C for v in T_ret_K]    if T_ret_K is not None else None
+        data.setdefault("T_sup_degC", {})[name] = [v - T_K_TO_C for v in T_sup_K]    if T_sup_K is not None else None
+    return time_vec, data
 
 def extract_pipes(reader, pipe_names):
-    rows = []
+    time_vec = None
+    data = {}
     for name in pipe_names:
-        t, Qloss_sup_W = safe_values(reader, f"{name}.Q_loss_sup")
-        _, Qloss_ret_W = safe_values(reader, f"{name}.Q_loss_ret")
-        _, m_flow      = safe_values(reader, f"{name}.port_aDisSup.m_flow")
-        _, p_in_Pa     = safe_values(reader, f"{name}.port_aDisSup.p")
-        _, p_out_Pa    = safe_values(reader, f"{name}.port_bDisSup.p")
-
+        t, Qloss_sup = safe_values(reader, f"{name}.Q_loss_sup")
+        _, Qloss_ret = safe_values(reader, f"{name}.Q_loss_ret")
+        _, m_flow    = safe_values(reader, f"{name}.port_aDisSup.m_flow")
+        _, p_in_Pa   = safe_values(reader, f"{name}.port_aDisSup.p")
+        _, p_out_Pa  = safe_values(reader, f"{name}.port_bDisSup.p")
         if t is None:
+            print(f"  [WARN] Pipe '{name}': Q_loss_sup not found, skipping.")
             continue
-
-        for k in range(len(t)):
-            rows.append({
-                "time_s":        t[k],
-                "pipe_id":       name,
-                "Q_loss_sup_kW": Qloss_sup_W[k] / 1000.0 if Qloss_sup_W is not None else "",
-                "Q_loss_ret_kW": Qloss_ret_W[k] / 1000.0 if Qloss_ret_W is not None else "",
-                "m_flow_kgs":    abs(m_flow[k])          if m_flow      is not None else "",
-                "p_in_bar":      p_in_Pa[k] / 1e5        if p_in_Pa     is not None else "",
-                "p_out_bar":     p_out_Pa[k] / 1e5       if p_out_Pa    is not None else "",
-            })
-    return rows
-
+        if time_vec is None:
+            time_vec = t
+        data.setdefault("Q_loss_sup_W", {})[name] = Qloss_sup
+        data.setdefault("Q_loss_ret_W", {})[name] = Qloss_ret
+        data.setdefault("m_flow_kgs",   {})[name] = [abs(v) for v in m_flow]           if m_flow   is not None else None
+        data.setdefault("p_in_bar",     {})[name] = [v / PA_TO_BAR for v in p_in_Pa]   if p_in_Pa  is not None else None
+        data.setdefault("p_out_bar",    {})[name] = [v / PA_TO_BAR for v in p_out_Pa]  if p_out_Pa is not None else None
+    return time_vec, data
 
 def extract_ets(reader, ets_names):
-    rows = []
+    time_vec = None
+    data = {}
     for name in ets_names:
-        t, T_sup_K  = safe_values(reader, f"{name}.senT_disSup.T")
-        _, T_ret_K  = safe_values(reader, f"{name}.senT_disRet.T")
-        _, Q_flow_W = safe_values(reader, f"{name}.QHea_flow")
-        _, m_flow   = safe_values(reader, f"{name}.port_aSerHea.m_flow")
-
+        t, T_sup_K = safe_values(reader, f"{name}.senT_disSup.T")
+        _, T_ret_K = safe_values(reader, f"{name}.senT_disRet.T")
+        _, Q_W     = safe_values(reader, f"{name}.QHea_flow")
+        _, m_flow  = safe_values(reader, f"{name}.port_aSerHea.m_flow")
         if t is None:
+            print(f"  [WARN] ETS '{name}': senT_disSup.T not found, skipping.")
             continue
+        if time_vec is None:
+            time_vec = t
+        data.setdefault("T_sup_degC", {})[name] = [v - T_K_TO_C for v in T_sup_K] if T_sup_K is not None else None
+        data.setdefault("T_ret_degC", {})[name] = [v - T_K_TO_C for v in T_ret_K] if T_ret_K is not None else None
+        data.setdefault("Q_W",        {})[name] = Q_W
+        data.setdefault("m_flow_kgs", {})[name] = [abs(v) for v in m_flow]         if m_flow  is not None else None
+    return time_vec, data
 
-        for k in range(len(t)):
-            rows.append({
-                "time_s":        t[k],
-                "substation_id": name,
-                "T_sup_degC":    T_sup_K[k] - T_K_TO_C if T_sup_K  is not None else "",
-                "T_ret_degC":    T_ret_K[k] - T_K_TO_C if T_ret_K  is not None else "",
-                "Q_kW":          Q_flow_W[k] / 1000.0  if Q_flow_W is not None else "",
-                "m_flow_kgs":    abs(m_flow[k])        if m_flow   is not None else "",
-            })
-    return rows
+# ===========================================================================
+# EXCEL EXPORT
+# ===========================================================================
+def write_excel(plant_time, plant_data, plant_names,
+                pipe_time,  pipe_data,  pipe_names,
+                ets_time,   ets_data,   ets_names,
+                out_path):
 
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)  # remove default empty sheet
 
-# ---------------------------------------------------------------------------
-# CSV writers
-# ---------------------------------------------------------------------------
-def write_csv(rows, fieldnames, out_path):
-    with open(out_path, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames)
-        w.writeheader()
-        w.writerows(rows)
+    def add_sheet(sheet_name, time_vec, instance_dict, instance_names):
+        ws = wb.create_sheet(title=sheet_name[:31])  # Excel max 31 chars
+        ws.append(["time_s"] + instance_names)
+        for k in range(len(time_vec)):
+            row = [float(time_vec[k])]
+            for name in instance_names:
+                arr = instance_dict.get(name)
+                row.append(float(arr[k]) if arr is not None else "")
+            ws.append(row)
 
+    for var, d in plant_data.items():
+        add_sheet(f"plant_{var}", plant_time, d, plant_names)
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
+    for var, d in pipe_data.items():
+        add_sheet(f"pipe_{var}", pipe_time, d, pipe_names)
+
+    for var, d in ets_data.items():
+        add_sheet(f"ets_{var}", ets_time, d, ets_names)
+
+    wb.save(out_path)
+    print(f"\n  Excel saved: {out_path}")
+    print(f"  Sheets ({len(wb.sheetnames)}): {wb.sheetnames}")
+
+# ===========================================================================
+# MAIN
+# ===========================================================================
 def main():
     parser = argparse.ArgumentParser(
-        description="Universal post-processing for DHN benchmark archetypes. "
-                     "Auto-detects an arbitrary number of plants, pipes and "
-                     "substations directly from the .mat file contents.")
-    parser.add_argument("mat_path", help="Path to the OpenModelica .mat result file")
+        description="Post-processing for DHN benchmark archetypes.")
+    parser.add_argument("mat_path", nargs="?", default=None,
+                        help="Path to the .mat result file.")
     parser.add_argument("--outdir", default=None,
-                         help="Output folder for CSV files "
-                              "(default: results_csv/<archetype_name>/ next to the .mat file)")
+                        help="Output folder.")
     args = parser.parse_args()
 
-    if not os.path.isfile(args.mat_path):
-        print(f"File not found: {args.mat_path}")
+    mat_path = args.mat_path or DEFAULT_MAT_PATH
+    out_dir  = args.outdir   or DEFAULT_OUT_DIR
+
+    if not os.path.isfile(mat_path):
+        print(f"[ERROR] File not found: {mat_path}")
+        print("  Check DEFAULT_MAT_PATH at the top of the script.")
         sys.exit(1)
 
-    archetype_name = os.path.splitext(os.path.basename(args.mat_path))[0]
-    archetype_name = re.sub(r"_res$", "", archetype_name)
-
-    out_dir = args.outdir or os.path.join(
-        os.path.dirname(args.mat_path), "results_csv", archetype_name)
     os.makedirs(out_dir, exist_ok=True)
 
-    print(f"Reading: {args.mat_path}")
-    r = Reader(args.mat_path, "dymola")
+    print(f"Reading: {mat_path}")
+    r = Reader(mat_path, "dymola")
 
-    # -----------------------------------------------------------------
-    # Auto-discovery — no assumption on instance count for any component
-    # -----------------------------------------------------------------
     plant_names = discover_plants(r)
     pipe_names  = discover_pipes(r)
     ets_names   = discover_ets(r)
 
-    print(f"  Detected {len(plant_names)} PlantStation instance(s): {plant_names}")
-    print(f"  Detected {len(pipe_names)} DHNPipe instance(s): {pipe_names}")
-    print(f"  Detected {len(ets_names)} ETS substation instance(s): {ets_names}")
+    print(f"  Detected {len(plant_names)} PlantStation(s) : {plant_names}")
+    print(f"  Detected {len(pipe_names)}  DHNPipe(s)      : {pipe_names}")
+    print(f"  Detected {len(ets_names)}   ETS(s)          : {ets_names}")
 
     if not (plant_names or pipe_names or ets_names):
-        print("  [WARN] No recognisable DHN_Benchmark components found in this .mat file.")
+        print("  [WARN] No DHN_Benchmark components found.")
+        sys.exit(0)
 
-    # -----------------------------------------------------------------
-    # Extraction + export
-    # -----------------------------------------------------------------
-    if plant_names:
-        rows = extract_plants(r, plant_names)
-        out_path = os.path.join(out_dir, "plant_results.csv")
-        write_csv(rows, ["time_s", "plant_id", "Q_kW", "m_flow_kgs",
-                          "T_ret_degC", "T_sup_degC"], out_path)
-        print(f"  -> {out_path}  ({len(rows)} rows)")
+    plant_time, plant_data = extract_plants(r, plant_names) if plant_names else (None, {})
+    pipe_time,  pipe_data  = extract_pipes(r,  pipe_names)  if pipe_names  else (None, {})
+    ets_time,   ets_data   = extract_ets(r,    ets_names)   if ets_names   else (None, {})
 
-    if pipe_names:
-        rows = extract_pipes(r, pipe_names)
-        out_path = os.path.join(out_dir, "pipe_results.csv")
-        write_csv(rows, ["time_s", "pipe_id", "Q_loss_sup_kW", "Q_loss_ret_kW",
-                          "m_flow_kgs", "p_in_bar", "p_out_bar"], out_path)
-        print(f"  -> {out_path}  ({len(rows)} rows)")
+    archetype_name = os.path.splitext(os.path.basename(mat_path))[0].replace("_res", "")
+    excel_path = os.path.join(out_dir, f"{archetype_name}_results.xlsx")
 
-    if ets_names:
-        rows = extract_ets(r, ets_names)
-        out_path = os.path.join(out_dir, "ets_results.csv")
-        write_csv(rows, ["time_s", "substation_id", "T_sup_degC", "T_ret_degC",
-                          "Q_kW", "m_flow_kgs"], out_path)
-        print(f"  -> {out_path}  ({len(rows)} rows)")
+    write_excel(
+        plant_time, plant_data, plant_names,
+        pipe_time,  pipe_data,  pipe_names,
+        ets_time,   ets_data,   ets_names,
+        excel_path
+    )
 
-    print(f"\nDone. All CSV files written to: {out_dir}")
-
+    print(f"\nDone.")
 
 if __name__ == "__main__":
     main()
