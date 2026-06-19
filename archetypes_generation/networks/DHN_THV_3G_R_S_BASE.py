@@ -35,14 +35,14 @@ os.makedirs(OUT_DIR, exist_ok=True)
 # Add repo root to path so archetypes_generation package is importable
 sys.path.insert(0, REPO_ROOT)
 
-import dhn_benchmark.constants as co
-import dhn_benchmark.demand_profile as dp
-import dhn_benchmark.plotting as pl
+import archetypes_generation.constants as co
+import archetypes_generation.demand_profile as dp
+import archetypes_generation.plotting as pl
 importlib.reload(co)
 importlib.reload(dp)
 importlib.reload(pl)
 
-from dhn_benchmark.constants import (
+from archetypes_generation.constants import (
     GEN_OPERATING, PIPE_CATALOGUE,
     LAMBDA_STEEL, LAMBDA_PUR, LAMBDA_HDPE, LAMBDA_SOIL,
     ROUGHNESS_STEEL, BURIAL_DEPTH, T_GROUND,
@@ -50,8 +50,8 @@ from dhn_benchmark.constants import (
     RHO_PUR, CP_PUR,
     RHO_HDPE, CP_HDPE,
 )
-from dhn_benchmark.demand_profile import Q_PEAK_W
-from dhn_benchmark.plotting import plot_topology
+from archetypes_generation.demand_profile import Q_PEAK_W
+from archetypes_generation.plotting import plot_topology
 
 # ---------------------------------------------------------------------------
 # SECTION 1 — PIPE LENGTHS

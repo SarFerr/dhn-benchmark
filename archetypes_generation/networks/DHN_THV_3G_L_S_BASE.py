@@ -34,14 +34,14 @@ os.makedirs(OUT_DIR, exist_ok=True)
 
 sys.path.insert(0, REPO_ROOT)
 
-import dhn_benchmark.constants as co
-import dhn_benchmark.demand_profile as dp
-import dhn_benchmark.plotting as pl
+import archetypes_generation.constants as co
+import archetypes_generation.demand_profile as dp
+import archetypes_generation.plotting as pl
 importlib.reload(co)
 importlib.reload(dp)
 importlib.reload(pl)
 
-from dhn_benchmark.constants import (
+from archetypes_generation.constants import (
     GEN_OPERATING, PIPE_CATALOGUE,
     LAMBDA_STEEL, LAMBDA_PUR, LAMBDA_HDPE, LAMBDA_SOIL,
     ROUGHNESS_STEEL, BURIAL_DEPTH, T_GROUND,
@@ -49,8 +49,8 @@ from dhn_benchmark.constants import (
     RHO_PUR, CP_PUR,
     RHO_HDPE, CP_HDPE,
 )
-from dhn_benchmark.demand_profile import Q_PEAK_W
-from dhn_benchmark.plotting import plot_topology
+from archetypes_generation.demand_profile import Q_PEAK_W
+from archetypes_generation.plotting import plot_topology
 
 # ---------------------------------------------------------------------------
 # SECTION 1 — PIPE LENGTHS
@@ -222,12 +222,29 @@ print(f"\n{'pipe_id':<14} {'from':<8} {'to':<10} "
       f"{'d_i mm':>8} {'d_o mm':>8}")
 print("-" * 75)
 
-for u, v in EDGES:
+# Ring edges — dimensioned for half total load (symmetric ring assumption)
+RING_EDGES = {("src","a"),("a","b"),("b","c"),("c","d"),
+              ("d","e"),("e","f"),("f","g"),("g","h"),("h","src")}
 
+# Branch edges — dimensioned for single substation load
+BRANCH_EDGES = {("a","sub1"),("a","sub2"),
+                ("b","sub3"),("b","sub4"),
+                ("d","sub5"),("d","sub6"),
+                ("f","sub7"),("f","sub8"),
+                ("h","sub9"),("h","sub10")}
+
+for u, v in EDGES:
     pid = f"{u}_{v}"
     Lp  = PIPE_L[(u, v)]
 
-    Q = round(Q_PEAK_W * HEAT_LOSS_FACTOR, 1)
+    if (u, v) in RING_EDGES:
+        # Ring segments carry half total flow (symmetric distribution)
+        Q = round(Q_total / 2, 1)
+        pipe_type = "ring"
+    else:
+        # Branch pipes carry single substation load
+        Q = round(Q_PEAK_W * HEAT_LOSS_FACTOR, 1)
+        pipe_type = "branch"
 
     dn, di, do, dc, s = select_dn(Q)
 
@@ -263,8 +280,8 @@ for u, v in EDGES:
     }
 
     print(f"{pid:<14} {u:<8} {v:<10} "
-          f"{Lp:>7.1f} {Q/1000:>7.1f} {dn:>5} "
-          f"{di*1000:>8.1f} {do*1000:>8.1f}")
+          f"{Lp:>7.1f} {Q / 1000:>7.1f} {dn:>5} "
+          f"{di * 1000:>8.1f} {do * 1000:>8.1f}  [{pipe_type}]")
 
 print("-" * 75)
 L_tot = sum(d["length_m"] for d in PIPE_SIZING.values())
