@@ -21,8 +21,7 @@ model DHN_THV_3G_L_S_BASE
 
   inner Modelica.Fluid.System system(
     energyDynamics    = Modelica.Fluid.Types.Dynamics.FixedInitial,
-    massDynamics      = Modelica.Fluid.Types.Dynamics.FixedInitial,
-    allowFlowReversal = false);
+    massDynamics      = Modelica.Fluid.Types.Dynamics.FixedInitial);
 
 // ---------------------------------------------------------------
   // Global network parameters
@@ -107,8 +106,7 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround, 
-    allowFlowReversal = true)
+    TGround        = TGround)
     "Ring: src to a — DN65, 163.9 m" annotation(
     Placement(transformation(origin = {-120, 140}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
@@ -120,8 +118,7 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround, 
-    allowFlowReversal = true)
+    TGround        = TGround)
     "Ring: a to b — DN65, 102.5 m" annotation(
     Placement(transformation(origin = {-120, -14}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
@@ -133,8 +130,7 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround, 
-    allowFlowReversal = true)
+    TGround        = TGround)
     "Ring: b to c — DN65, 127.5 m" annotation(
     Placement(transformation(origin = {-120, -160}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
@@ -146,8 +142,7 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround, 
-    allowFlowReversal = true)
+    TGround        = TGround)
     "Ring: c to d — DN65, 122.3 m" annotation(
     Placement(transformation(origin = {20, -210}, extent = {{-20, -20}, {20, 20}})));
 
@@ -159,8 +154,7 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround, 
-    allowFlowReversal = true)
+    TGround        = TGround)
     "Ring: d to e — DN65, 173.6 m" annotation(
     Placement(transformation(origin = {220, -210}, extent = {{-20, -20}, {20, 20}})));
 
@@ -172,8 +166,7 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround, 
-    allowFlowReversal = true)
+    TGround        = TGround)
     "Ring: e to f — DN65, 167.7 m" annotation(
     Placement(transformation(origin = {360, -76}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
 
@@ -185,8 +178,7 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround, 
-    allowFlowReversal = true)
+    TGround        = TGround)
     "Ring: f to g — DN65, 189.2 m" annotation(
     Placement(transformation(origin = {360, 120}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
 
@@ -198,8 +190,7 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround, 
-    allowFlowReversal = true)
+    TGround        = TGround)
     "Ring: g to h — DN65, 108.7 m" annotation(
     Placement(transformation(origin = {220, 240}, extent = {{20, 20}, {-20, -20}}, rotation = -0)));
 
@@ -211,8 +202,7 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround, 
-    allowFlowReversal = true)
+    TGround        = TGround)
     "Ring: h to src — DN65, 142.2 m" annotation(
     Placement(transformation(origin = {20, 240}, extent = {{20, 20}, {-20, -20}}, rotation = -0)));
 
@@ -339,7 +329,7 @@ model DHN_THV_3G_L_S_BASE
     "Branch h to sub10 — DN25, 180.9 m" annotation(
     Placement(transformation(origin = {152, 180}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
-// ---------------------------------------------------------------
+  // ---------------------------------------------------------------
   // Junctions — node a (degree 4: ring_in, ring_out, sub1, sub2)
   // ---------------------------------------------------------------
   DHNJunction jun_a1(
@@ -354,7 +344,7 @@ model DHN_THV_3G_L_S_BASE
     "Junction a2: splits toward sub2 and ring_a_b" annotation(
     Placement(transformation(origin = {-120, 40}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
-// ---------------------------------------------------------------
+  // ---------------------------------------------------------------
   // Junctions — node b (degree 4: ring_in, ring_out, sub3, sub4)
   // ---------------------------------------------------------------
   DHNJunction jun_b1(
@@ -369,7 +359,7 @@ model DHN_THV_3G_L_S_BASE
     "Junction b2: splits toward sub4 and ring_b_c" annotation(
     Placement(transformation(origin = {-120, -112}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
-// ---------------------------------------------------------------
+  // ---------------------------------------------------------------
   // Junctions — node d (degree 4: ring_in, ring_out, sub5, sub6)
   // ---------------------------------------------------------------
   DHNJunction jun_d1(
@@ -384,7 +374,7 @@ model DHN_THV_3G_L_S_BASE
     "Junction d2: splits toward sub6 and ring_d_e" annotation(
     Placement(transformation(origin = {152, -210}, extent = {{-20, -20}, {20, 20}})));
 
-// ---------------------------------------------------------------
+  // ---------------------------------------------------------------
   // Junctions — node f (degree 4: ring_in, ring_out, sub7, sub8)
   // ---------------------------------------------------------------
   DHNJunction jun_f1(
@@ -399,7 +389,7 @@ model DHN_THV_3G_L_S_BASE
     "Junction f2: splits toward sub8 and ring_f_g" annotation(
     Placement(transformation(origin = {360, -6}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
 
-// ---------------------------------------------------------------
+  // ---------------------------------------------------------------
   // Junctions — node h (degree 4: ring_in, ring_out, sub9, sub10)
   // ---------------------------------------------------------------
   DHNJunction jun_h1(
@@ -413,7 +403,8 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_ring - m_sub)
     "Junction h2: splits toward sub10 and ring_h_src" annotation(
     Placement(transformation(origin = {152, 240}, extent = {{-20, -20}, {20, 20}})));
-   // ---------------------------------------------------------------
+  
+  // ---------------------------------------------------------------
   // Junctions — node c, e, g
   // ---------------------------------------------------------------
   Buildings.Fluid.FixedResistances.PressureDrop junSup_c (
