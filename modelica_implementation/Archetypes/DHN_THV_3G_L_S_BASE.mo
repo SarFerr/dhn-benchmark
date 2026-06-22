@@ -24,7 +24,7 @@ model DHN_THV_3G_L_S_BASE
     massDynamics      = Modelica.Fluid.Types.Dynamics.FixedInitial,
     allowFlowReversal = true);
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Global network parameters
   // ---------------------------------------------------------------
   parameter Integer nSub = 10
@@ -53,7 +53,7 @@ model DHN_THV_3G_L_S_BASE
       "modelica://modelica_implementation/Resources/InputData/demand_profile_base.mos")
     "Path to substation load time-series file";
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Nominal flow rates (bottom-up sizing from substations)
   // ---------------------------------------------------------------
   parameter Modelica.Units.SI.HeatFlowRate Q_peak_sub = 175000
@@ -71,7 +71,7 @@ model DHN_THV_3G_L_S_BASE
   parameter Modelica.Units.SI.MassFlowRate m_total = nSub * m_sub
     "Total nominal mass flow rate from plant [kg/s]";
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Central plant
   // ---------------------------------------------------------------
   PlantStation src(
@@ -86,7 +86,7 @@ model DHN_THV_3G_L_S_BASE
     "Central heat plant" annotation(
     Placement(transformation(origin = {-200, 240}, extent = {{-20, -20}, {20, 20}})));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Source junctions — src connects to ring pipe src_a (outlet)
   // and ring pipe h_src (inlet), so we need a split/merge junction
   // ---------------------------------------------------------------
@@ -96,7 +96,7 @@ model DHN_THV_3G_L_S_BASE
     "Source junction: connects plant to ring pipes src_a and h_src" annotation(
     Placement(transformation(origin = {-120, 240}, extent = {{-20, -20}, {20, 20}})));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Ring pipes (9 segments, all DN65)
   // ---------------------------------------------------------------
   DHNPipe pipe_src_a(
@@ -207,7 +207,7 @@ model DHN_THV_3G_L_S_BASE
     "Ring: h to src — DN65, 142.2 m" annotation(
     Placement(transformation(origin = {20, 240}, extent = {{20, 20}, {-20, -20}}, rotation = -0)));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Branch pipes to substations (10 segments, all DN25)
   // ---------------------------------------------------------------
   DHNPipe pipe_a_sub1(
@@ -330,7 +330,7 @@ model DHN_THV_3G_L_S_BASE
     "Branch h to sub10 — DN25, 180.9 m" annotation(
     Placement(transformation(origin = {152, 180}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Junctions — node a (degree 4: ring_in, ring_out, sub1, sub2)
   // ---------------------------------------------------------------
   DHNJunction jun_a1(
@@ -345,7 +345,7 @@ model DHN_THV_3G_L_S_BASE
     "Junction a2: splits toward sub2 and ring_a_b" annotation(
     Placement(transformation(origin = {-120, 40}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Junctions — node b (degree 4: ring_in, ring_out, sub3, sub4)
   // ---------------------------------------------------------------
   DHNJunction jun_b1(
@@ -360,7 +360,7 @@ model DHN_THV_3G_L_S_BASE
     "Junction b2: splits toward sub4 and ring_b_c" annotation(
     Placement(transformation(origin = {-120, -112}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Junctions — node d (degree 4: ring_in, ring_out, sub5, sub6)
   // ---------------------------------------------------------------
   DHNJunction jun_d1(
@@ -375,7 +375,7 @@ model DHN_THV_3G_L_S_BASE
     "Junction d2: splits toward sub6 and ring_d_e" annotation(
     Placement(transformation(origin = {152, -210}, extent = {{-20, -20}, {20, 20}})));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Junctions — node f (degree 4: ring_in, ring_out, sub7, sub8)
   // ---------------------------------------------------------------
   DHNJunction jun_f1(
@@ -390,7 +390,7 @@ model DHN_THV_3G_L_S_BASE
     "Junction f2: splits toward sub8 and ring_f_g" annotation(
     Placement(transformation(origin = {360, -6}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Junctions — node h (degree 4: ring_in, ring_out, sub9, sub10)
   // ---------------------------------------------------------------
   DHNJunction jun_h1(
@@ -404,8 +404,7 @@ model DHN_THV_3G_L_S_BASE
     m_flow_nominal = m_ring - m_sub)
     "Junction h2: splits toward sub10 and ring_h_src" annotation(
     Placement(transformation(origin = {152, 240}, extent = {{-20, -20}, {20, 20}})));
-   
-  // ---------------------------------------------------------------
+   // ---------------------------------------------------------------
   // Junctions — node c, e, g
   // ---------------------------------------------------------------
   Buildings.Fluid.FixedResistances.PressureDrop junSup_c (
@@ -470,9 +469,9 @@ model DHN_THV_3G_L_S_BASE
     each dTDis_nominal      = dTDis_nominal)
     "ETS substations 1..10" annotation(
     Placement(transformation(origin = {558, 24}, extent = {{-16, -16}, {16, 16}})));
-  
-  equation
 
+  equation
+  
   // ---------------------------------------------------------------
   // Source
   // ---------------------------------------------------------------
@@ -512,10 +511,9 @@ model DHN_THV_3G_L_S_BASE
     Line(points = {{-114, 28}, {-114, 6}}, color = {0, 127, 255}));
   connect(pipe_a_b.port_bDisRet, jun_a2.port_aRetIn1) annotation(
     Line(points = {{-126, 6}, {-126, 28}}, color = {0, 127, 255}));
-  
-  // ---------------------------------------------------------------
-  // Node b
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Node b
+// ---------------------------------------------------------------
   connect(pipe_a_b.port_bDisSup, jun_b1.port_aSupIn) annotation(
     Line(points = {{-114, -34}, {-114, -60}}, color = {0, 127, 255}));
   connect(jun_b1.port_bRetOut, pipe_a_b.port_aDisRet) annotation(
@@ -536,10 +534,9 @@ model DHN_THV_3G_L_S_BASE
     Line(points = {{-114, -124}, {-114, -140}}, color = {0, 127, 255}));
   connect(pipe_b_c.port_bDisRet, jun_b2.port_aRetIn1) annotation(
     Line(points = {{-126, -140}, {-126, -124}}, color = {0, 127, 255}));
-  
-  // ---------------------------------------------------------------
-  // Node c
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Node c
+// ---------------------------------------------------------------
   connect(pipe_b_c.port_bDisSup, junSup_c.port_a) annotation(
     Line(points = {{-114, -180}, {-114, -200}, {-72, -200}}, color = {0, 127, 255}));
   connect(junRet_c.port_b, pipe_b_c.port_aDisRet) annotation(
@@ -548,10 +545,9 @@ model DHN_THV_3G_L_S_BASE
     Line(points = {{-32, -200}, {-14, -200}, {-14, -204}, {0, -204}}, color = {0, 127, 255}));
   connect(pipe_c_d.port_bDisRet, junRet_c.port_a) annotation(
     Line(points = {{0, -216}, {-14, -216}, {-14, -220}, {-32, -220}}, color = {0, 127, 255}));
-  
-  // ---------------------------------------------------------------
-  // Node d
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Node d
+// ---------------------------------------------------------------
   connect(pipe_c_d.port_bDisSup, jun_d1.port_aSupIn) annotation(
     Line(points = {{40, -204}, {88, -204}}, color = {0, 127, 255}));
   connect(jun_d1.port_bRetOut, pipe_c_d.port_aDisRet) annotation(
@@ -572,10 +568,9 @@ model DHN_THV_3G_L_S_BASE
     Line(points = {{164, -204}, {200, -204}}, color = {0, 127, 255}));
   connect(pipe_d_e.port_bDisRet, jun_d2.port_aRetIn1) annotation(
     Line(points = {{200, -216}, {164, -216}}, color = {0, 127, 255}));
-  
-  // ---------------------------------------------------------------
-  // Node e
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Node e
+// ---------------------------------------------------------------
   connect(pipe_d_e.port_bDisSup, junSup_e.port_a) annotation(
     Line(points = {{240, -204}, {274, -204}, {274, -200}, {300, -200}}, color = {0, 127, 255}));
   connect(junRet_e.port_b, pipe_d_e.port_aDisRet) annotation(
@@ -584,10 +579,9 @@ model DHN_THV_3G_L_S_BASE
     Line(points = {{340, -200}, {354, -200}, {354, -96}}, color = {0, 127, 255}));
   connect(pipe_e_f.port_bDisRet, junRet_e.port_a) annotation(
     Line(points = {{366, -96}, {366, -220}, {340, -220}}, color = {0, 127, 255}));
-
-  // ---------------------------------------------------------------
-  // Node f
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Node f
+// ---------------------------------------------------------------
   connect(pipe_e_f.port_bDisSup, jun_f2.port_aSupIn) annotation(
     Line(points = {{354, -56}, {354, -18}}, color = {0, 127, 255}));
   connect(jun_f2.port_bRetOut, pipe_e_f.port_aDisRet) annotation(
@@ -608,10 +602,9 @@ model DHN_THV_3G_L_S_BASE
     Line(points = {{354, 64}, {354, 100}}, color = {0, 127, 255}));
   connect(pipe_f_g.port_bDisRet, jun_f1.port_aRetIn1) annotation(
     Line(points = {{366, 100}, {366, 64}}, color = {0, 127, 255}));
-  
-  // ---------------------------------------------------------------
-  // Node g
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Node g
+// ---------------------------------------------------------------
   connect(pipe_f_g.port_bDisSup, junSup_g.port_a) annotation(
     Line(points = {{354, 140}, {354, 160}, {348, 160}, {348, 180}}, color = {0, 127, 255}));
   connect(junRet_g.port_b, pipe_f_g.port_aDisRet) annotation(
@@ -620,10 +613,9 @@ model DHN_THV_3G_L_S_BASE
     Line(points = {{348, 220}, {348, 234}, {240, 234}}, color = {0, 127, 255}));
   connect(pipe_g_h.port_bDisRet, junRet_g.port_a) annotation(
     Line(points = {{240, 246}, {372, 246}, {372, 220}}, color = {0, 127, 255}));
-  
-  // ---------------------------------------------------------------
-  // Node h
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Node h
+// ---------------------------------------------------------------
   connect(pipe_h_src.port_bDisRet, jun_h1.port_aSupIn) annotation(
     Line(points = {{40, 246}, {88, 246}}, color = {0, 127, 255}));
   connect(jun_h1.port_bRetOut, pipe_h_src.port_aDisSup) annotation(
