@@ -10,7 +10,7 @@ model DHNJunction
   replaceable package Medium = Buildings.Media.Water
     "District heating medium";
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Hydraulic parameters
   // ---------------------------------------------------------------
   parameter Modelica.Units.SI.MassFlowRate m_flow_nominal = 0.5
@@ -19,7 +19,7 @@ model DHNJunction
   parameter Boolean allowFlowReversal = false
     "= true to allow flow reversal";
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Supply junction (1 inlet → 2 outlets)
   // ---------------------------------------------------------------
   Buildings.Fluid.FixedResistances.Junction junSup(
@@ -32,7 +32,7 @@ model DHNJunction
     "Supply side T-junction: flow splits from port_1 to port_2 and port_3" annotation(
     Placement(transformation(origin = {40, 20}, extent = {{-10, -10}, {10, 10}})));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Return junction (2 inlets → 1 outlet)
   // ---------------------------------------------------------------
   Buildings.Fluid.FixedResistances.Junction junRet(
@@ -45,7 +45,7 @@ model DHNJunction
     "Return side T-junction: flow merges from port_2 and port_3 into port_1" annotation(
     Placement(transformation(origin = {0, -20}, extent = {{-10, -10}, {10, 10}})));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Instrumentation sensors
   // ---------------------------------------------------------------
   Buildings.Fluid.Sensors.TemperatureTwoPort senT_supIn(
@@ -82,14 +82,14 @@ model DHNJunction
     "Mass flow rate leaving junction toward second downstream branch [kg/s]" annotation(
     Placement(transformation(origin = {40, -40}, extent = {{-10, 10}, {10, -10}}, rotation = -90)));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // External fluid ports — supply side
   // ---------------------------------------------------------------
   Modelica.Fluid.Interfaces.FluidPort_a port_aSupIn(
     redeclare package Medium = Medium)
     "Supply inlet (from upstream trunk pipe)" annotation(
     Placement(transformation(origin = {-120, 20}, extent = {{-10, -10}, {10, 10}}),
-    iconTransformation(origin = {-62, 32}, extent = {{-10, -10}, {10, 10}})));
+    iconTransformation(origin = {-30, -60}, extent = {{-10, -10}, {10, 10}})));
 
   Modelica.Fluid.Interfaces.FluidPort_b port_bSupOut1(
     redeclare package Medium = Medium)
@@ -101,16 +101,16 @@ model DHNJunction
     redeclare package Medium = Medium)
     "Supply outlet 2 (to second downstream branch)" annotation(
     Placement(transformation(origin = {40, -82}, extent = {{-10, -10}, {10, 10}}),
-    iconTransformation(origin = {30, -60}, extent = {{-10, -10}, {10, 10}})));
+    iconTransformation(origin = {-60, -30}, extent = {{-10, -10}, {10, 10}})));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // External fluid ports — return side
   // ---------------------------------------------------------------
   Modelica.Fluid.Interfaces.FluidPort_b port_bRetOut(
     redeclare package Medium = Medium)
     "Return outlet (to upstream trunk pipe)" annotation(
     Placement(transformation(origin = {-120, -20}, extent = {{-10, -10}, {10, 10}}),
-    iconTransformation(origin = {-62, -30}, extent = {{-10, -10}, {10, 10}})));
+    iconTransformation(origin = {30, -60}, extent = {{-10, -10}, {10, 10}})));
 
   Modelica.Fluid.Interfaces.FluidPort_a port_aRetIn1(
     redeclare package Medium = Medium)
@@ -122,13 +122,12 @@ model DHNJunction
     redeclare package Medium = Medium)
     "Return inlet 2 (from second downstream branch)" annotation(
     Placement(transformation(origin = {0, -80}, extent = {{-10, -10}, {10, 10}}),
-    iconTransformation(origin = {-30, -62}, extent = {{-10, -10}, {10, 10}})));
+    iconTransformation(origin = {-60, 30}, extent = {{-10, -10}, {10, 10}})));
 
 equation
-
-  // ---------------------------------------------------------------
-  // Supply side connections
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Supply side connections
+// ---------------------------------------------------------------
   connect(port_aSupIn, senM_supIn.port_a) annotation(
     Line(points = {{-120, 20}, {-90, 20}}));
   connect(senM_supIn.port_b, senT_supIn.port_a) annotation(
@@ -143,10 +142,9 @@ equation
     Line(points = {{40, 10}, {40, -30}}, color = {0, 127, 255}));
   connect(senM_supOut2.port_b, port_bSupOut2) annotation(
     Line(points = {{40, -50}, {40, -82}}, color = {0, 127, 255}));
-
-  // ---------------------------------------------------------------
-  // Return side connections
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Return side connections
+// ---------------------------------------------------------------
   connect(port_aRetIn1, junRet.port_2) annotation(
     Line(points = {{120, -20}, {10, -20}}));
   connect(junRet.port_1, senT_retOut.port_a) annotation(

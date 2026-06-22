@@ -22,7 +22,7 @@ model DHN_THV_3G_L_S_BASE
   inner Modelica.Fluid.System system(
     energyDynamics    = Modelica.Fluid.Types.Dynamics.FixedInitial,
     massDynamics      = Modelica.Fluid.Types.Dynamics.FixedInitial,
-    allowFlowReversal = true);
+    allowFlowReversal = false);
 
 // ---------------------------------------------------------------
   // Global network parameters
@@ -107,7 +107,8 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround)
+    TGround        = TGround, 
+    allowFlowReversal = true)
     "Ring: src to a — DN65, 163.9 m" annotation(
     Placement(transformation(origin = {-120, 140}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
@@ -119,7 +120,8 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround)
+    TGround        = TGround, 
+    allowFlowReversal = true)
     "Ring: a to b — DN65, 102.5 m" annotation(
     Placement(transformation(origin = {-120, -14}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
@@ -131,7 +133,8 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround)
+    TGround        = TGround, 
+    allowFlowReversal = true)
     "Ring: b to c — DN65, 127.5 m" annotation(
     Placement(transformation(origin = {-120, -160}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
@@ -143,7 +146,8 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround)
+    TGround        = TGround, 
+    allowFlowReversal = true)
     "Ring: c to d — DN65, 122.3 m" annotation(
     Placement(transformation(origin = {20, -210}, extent = {{-20, -20}, {20, 20}})));
 
@@ -155,7 +159,8 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround)
+    TGround        = TGround, 
+    allowFlowReversal = true)
     "Ring: d to e — DN65, 173.6 m" annotation(
     Placement(transformation(origin = {220, -210}, extent = {{-20, -20}, {20, 20}})));
 
@@ -167,7 +172,8 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround)
+    TGround        = TGround, 
+    allowFlowReversal = true)
     "Ring: e to f — DN65, 167.7 m" annotation(
     Placement(transformation(origin = {360, -76}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
 
@@ -179,7 +185,8 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround)
+    TGround        = TGround, 
+    allowFlowReversal = true)
     "Ring: f to g — DN65, 189.2 m" annotation(
     Placement(transformation(origin = {360, 120}, extent = {{-20, -20}, {20, 20}}, rotation = 90)));
 
@@ -191,7 +198,8 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround)
+    TGround        = TGround, 
+    allowFlowReversal = true)
     "Ring: g to h — DN65, 108.7 m" annotation(
     Placement(transformation(origin = {220, 240}, extent = {{20, 20}, {-20, -20}}, rotation = -0)));
 
@@ -203,7 +211,8 @@ model DHN_THV_3G_L_S_BASE
     kIns           = 0.033,
     roughness      = 4.5e-5,
     m_flow_nominal = m_ring,
-    TGround        = TGround)
+    TGround        = TGround, 
+    allowFlowReversal = true)
     "Ring: h to src — DN65, 142.2 m" annotation(
     Placement(transformation(origin = {20, 240}, extent = {{20, 20}, {-20, -20}}, rotation = -0)));
 
@@ -455,7 +464,7 @@ model DHN_THV_3G_L_S_BASE
     "90-deg bend at node g" annotation(
     Placement(transformation(origin = {372, 200}, extent = {{-20, -20}, {20, 20}}, rotation = -90)));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // ETS substations (10 instances)
   // ---------------------------------------------------------------
   BuildingWithIndirectETS ets[nSub](
@@ -468,13 +477,10 @@ model DHN_THV_3G_L_S_BASE
     each THeaWatRet_nominal = THeaWatRet_nominal,
     each dTDis_nominal      = dTDis_nominal)
     "ETS substations 1..10" annotation(
-    Placement(transformation(origin = {558, 24}, extent = {{-16, -16}, {16, 16}})));
-
-  equation
-  
-  // ---------------------------------------------------------------
-  // Source
-  // ---------------------------------------------------------------
+    Placement(transformation(origin = {558, 24}, extent = {{-16, -16}, {16, 16}})));  equation
+// ---------------------------------------------------------------
+// Source
+// ---------------------------------------------------------------
   connect(src.port_bDis, jun_src.port_aSupIn) annotation(
     Line(points = {{-180, 244}, {-132, 244}, {-132, 246}}, color = {0, 127, 255}));
   connect(jun_src.port_bRetOut, src.port_aDis) annotation(
@@ -487,10 +493,9 @@ model DHN_THV_3G_L_S_BASE
     Line(points = {{-114, 228}, {-114, 160}}, color = {0, 127, 255}));
   connect(pipe_src_a.port_bDisRet, jun_src.port_aRetIn2) annotation(
     Line(points = {{-126, 160}, {-126, 228}}, color = {0, 127, 255}));
-  
-  // ---------------------------------------------------------------
-  // Node a
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Node a
+// ---------------------------------------------------------------
   connect(pipe_src_a.port_bDisSup, jun_a1.port_aSupIn) annotation(
     Line(points = {{-114, 120}, {-114, 92}}, color = {0, 127, 255}));
   connect(jun_a1.port_bRetOut, pipe_src_a.port_aDisRet) annotation(
@@ -679,6 +684,7 @@ model DHN_THV_3G_L_S_BASE
     Line(points = {{158, 160}, {158, 146}, {520, 146}, {520, 22}, {542, 22}}, color = {0, 127, 255}));
  connect(ets[10].port_bSerHea, pipe_h_sub10.port_aDisRet) annotation(
     Line(points = {{574, 22}, {600, 22}, {600, 152}, {146, 152}, {146, 160}}, color = {0, 127, 255}));
+ 
  annotation(
     uses(Buildings(version = "13.0.0"), Modelica(version = "4.1.0")),
     experiment(
