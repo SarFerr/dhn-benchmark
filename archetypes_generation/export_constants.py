@@ -9,7 +9,7 @@
 import csv, os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 
-from dhn_benchmark.constants import (
+from constants import (
     RHO_WATER_3G, CP_WATER_3G, MU_WATER_3G, LAMBDA_WATER_3G,
     RHO_WATER_4G, CP_WATER_4G, MU_WATER_4G, LAMBDA_WATER_4G,
     RHO_WATER_5G, CP_WATER_5G, MU_WATER_5G, LAMBDA_WATER_5G,
