@@ -24,7 +24,7 @@ model DHN_THV_3G_L_S_BASE_test
     massDynamics      = Modelica.Fluid.Types.Dynamics.FixedInitial,
     allowFlowReversal = true);
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Global parameters
   // ---------------------------------------------------------------
   parameter Integer nCon = 10
@@ -53,7 +53,7 @@ model DHN_THV_3G_L_S_BASE_test
       "modelica://modelica_implementation/Resources/InputData/demand_profile_base.mos")
     "Path to substation load time-series file";
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Nominal flow rates
   // ---------------------------------------------------------------
   parameter Modelica.Units.SI.HeatFlowRate Q_peak_sub = 175000
@@ -124,7 +124,8 @@ model DHN_THV_3G_L_S_BASE_test
     allowFlowReversal     = true,
     iConDpSen             = nCon,
     roughness             = 4.5e-5,
-    thickness             = 0.03195)
+    thickness             = 0.03195, 
+    show_entFlo = true)
     "Ring distribution network" annotation(
     Placement(transformation(origin = {0, -14}, extent = {{-40,-20},{40,20}})));
  
