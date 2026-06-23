@@ -89,7 +89,7 @@ model DHNJunction
     redeclare package Medium = Medium)
     "Supply inlet (from upstream trunk pipe)" annotation(
     Placement(transformation(origin = {-120, 20}, extent = {{-10, -10}, {10, 10}}),
-    iconTransformation(origin = {-30, -60}, extent = {{-10, -10}, {10, 10}})));
+    iconTransformation(origin = {-60, 30}, extent = {{-10, -10}, {10, 10}})));
 
   Modelica.Fluid.Interfaces.FluidPort_b port_bSupOut1(
     redeclare package Medium = Medium)
@@ -101,7 +101,7 @@ model DHNJunction
     redeclare package Medium = Medium)
     "Supply outlet 2 (to second downstream branch)" annotation(
     Placement(transformation(origin = {40, -82}, extent = {{-10, -10}, {10, 10}}),
-    iconTransformation(origin = {-60, -30}, extent = {{-10, -10}, {10, 10}})));
+    iconTransformation(origin = {30, -60}, extent = {{-10, -10}, {10, 10}})));
 
 // ---------------------------------------------------------------
   // External fluid ports — return side
@@ -110,7 +110,7 @@ model DHNJunction
     redeclare package Medium = Medium)
     "Return outlet (to upstream trunk pipe)" annotation(
     Placement(transformation(origin = {-120, -20}, extent = {{-10, -10}, {10, 10}}),
-    iconTransformation(origin = {30, -60}, extent = {{-10, -10}, {10, 10}})));
+    iconTransformation(origin = {-60, -30}, extent = {{-10, -10}, {10, 10}})));
 
   Modelica.Fluid.Interfaces.FluidPort_a port_aRetIn1(
     redeclare package Medium = Medium)
@@ -122,7 +122,7 @@ model DHNJunction
     redeclare package Medium = Medium)
     "Return inlet 2 (from second downstream branch)" annotation(
     Placement(transformation(origin = {0, -80}, extent = {{-10, -10}, {10, 10}}),
-    iconTransformation(origin = {-60, 30}, extent = {{-10, -10}, {10, 10}})));
+    iconTransformation(origin = {-30, -60}, extent = {{-10, -10}, {10, 10}})));
 
 equation
 // ---------------------------------------------------------------

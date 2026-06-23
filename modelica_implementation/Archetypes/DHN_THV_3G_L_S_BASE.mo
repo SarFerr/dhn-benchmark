@@ -20,7 +20,7 @@ model DHN_THV_3G_L_S_BASE
     "District heating medium";
 
   inner Modelica.Fluid.System system(
-    energyDynamics    = Modelica.Fluid.Types.Dynamics.FixedInitial,
+    energyDynamics    = Modelica.Fluid.Types.Dynamics.SteadyState,
     massDynamics      = Modelica.Fluid.Types.Dynamics.FixedInitial);
 
 // ---------------------------------------------------------------

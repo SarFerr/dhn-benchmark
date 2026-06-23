@@ -12,7 +12,7 @@ model PlantStation
   replaceable package Medium = Buildings.Media.Water
     "District heating medium";
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Design parameters
   // ---------------------------------------------------------------
   parameter Modelica.Units.SI.Temperature TDisSup_nominal = 273.15 + 80
@@ -35,8 +35,7 @@ model PlantStation
 
   parameter Modelica.Units.SI.PressureDifference dp_heater_nominal = 10000
     "Nominal pressure drop across the ideal heater [Pa]";
-    
-  // ---------------------------------------------------------------
+    // ---------------------------------------------------------------
   // Expansion vessel (absolute pressure reference)
   // ---------------------------------------------------------------
   Buildings.Fluid.Sources.Boundary_pT exp(
@@ -47,7 +46,7 @@ model PlantStation
     "Expansion vessel — sets absolute pressure reference for the primary loop"annotation(
     Placement(transformation(origin = {-80, -40}, extent = {{-10, -10}, {10, 10}})));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Primary circulation pump
   // ---------------------------------------------------------------
   Buildings.Fluid.Movers.FlowControlled_dp pump(
@@ -55,14 +54,13 @@ model PlantStation
     m_flow_nominal  = mDis_flow_nominal,
     dp_nominal      = dp_pump_nominal,
     inputType       = Buildings.Fluid.Types.InputType.Continuous,
-    addPowerToMedium = false)
+    addPowerToMedium = false, allowFlowReversal = false)
     "Primary circulation pump (constant differential-pressure control)" annotation(
     Placement(transformation(origin = {0, -40}, extent = {{-10, -10}, {10, 10}})));
   
   Modelica.Blocks.Sources.Constant dpPumpSet(k = dp_pump_set)
      "Differential pressure setpoint [Pa]" annotation(
     Placement(transformation(origin = {-70, 0}, extent = {{-10, -10}, {10, 10}})));
-  
   // ---------------------------------------------------------------
   // Ideal heater (imposes district supply temperature)
   // ---------------------------------------------------------------
@@ -77,7 +75,6 @@ model PlantStation
   Modelica.Blocks.Sources.Constant TPlantSup(k = TDisSup_nominal)
     "Plant supply temperature setpoint signal [K]" annotation(
     Placement(transformation(origin = {-70, 40}, extent = {{-10, -10}, {10, 10}})));
-  
   // ---------------------------------------------------------------
   // Instrumentation sensor — return temperature
   // ---------------------------------------------------------------
@@ -88,7 +85,6 @@ model PlantStation
     tau               = 0)
     "Return temperature after pump, before heat exchanger [K]" annotation(
     Placement(transformation(origin = {-40, -40}, extent = {{-10, -10}, {10, 10}})));
-  
   // ---------------------------------------------------------------
   // External fluid ports
   // ---------------------------------------------------------------
@@ -104,7 +100,7 @@ model PlantStation
     Placement(transformation(origin = {100, -20}, extent = {{-10, -10}, {10, 10}}),
     iconTransformation(origin = {100, -20}, extent = {{-10, -10}, {10, 10}})));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Output signals
   // ---------------------------------------------------------------
   Modelica.Blocks.Interfaces.RealOutput Q_flow
@@ -113,10 +109,9 @@ model PlantStation
     iconTransformation(origin = {110, 70}, extent = {{-10, -10}, {10, 10}})));
 
 equation
-  
-  // ---------------------------------------------------------------
-  // Primary loop connections
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Primary loop connections
+// ---------------------------------------------------------------
   connect(exp.ports[1], senT_ret.port_a) annotation(
     Line(points = {{-70, -40}, {-50, -40}}, color = {0, 127, 255}));
   connect(senT_ret.port_b, pump.port_a) annotation(
@@ -127,20 +122,18 @@ equation
     Line(points = {{60, -40}, {80, -40}, {80, 20}, {100, 20}}, color = {0, 127, 255}));
   connect(port_aDis, senT_ret.port_a) annotation(
     Line(points = {{100, -20}, {-50, -20}, {-50, -40}}));
-
-  // ---------------------------------------------------------------
-  // Control signal connections
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Control signal connections
+// ---------------------------------------------------------------
   connect(dpPumpSet.y, pump.dp_in) annotation(
     Line(points = {{-58, 0}, {0, 0}, {0, -28}}, color = {0, 0, 127}));
   connect(TPlantSup.y, plaHea.TSet) annotation(
     Line(points = {{-58, 40}, {20, 40}, {20, -32}, {38, -32}}, color = {0, 0, 127}));
-  // ---------------------------------------------------------------
-  // Output signal connections
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Output signal connections
+// ---------------------------------------------------------------
   connect(plaHea.Q_flow, Q_flow) annotation(
-    Line(points = {{62, -32}, {70, -32}, {70, 70}, {110, 70}}, color = {0, 0, 127}));
-  
+    Line(points = {{62, -32}, {70, -32}, {70, 70}, {110, 70}}, color = {0, 0, 127}));  
 annotation(
     uses(Buildings(version = "13.0.0"), Modelica(version = "4.1.0")),
     Icon(
