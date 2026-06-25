@@ -107,6 +107,16 @@ model DHN_THV_3G_L_S_BASE_test
     "Nominal mass flow rate leaving the plant [kg/s]";
   
   // ---------------------------------------------------------------
+  // Source junctions — src connects to ring pipe src_a (outlet)
+  // and ring pipe h_src (inlet), so we need a split/merge junction
+  // ---------------------------------------------------------------
+  DHNJunction jun_src(
+    redeclare package Medium = Medium,
+    m_flow_nominal = m_total)
+    "Source junction: connects plant to ring pipes src_a and h_src" annotation(
+    Placement(transformation(origin = {-92, -20}, extent = {{-20, -20}, {20, 20}})));
+
+  // ---------------------------------------------------------------
   // Ring distribution
   // ---------------------------------------------------------------
   Buildings.DHC.Networks.Distribution2PipePlugFlow_v dis(
@@ -116,7 +126,7 @@ model DHN_THV_3G_L_S_BASE_test
     mCon_flow_nominal     = mCon_flow_nominal,
     mEnd_flow_nominal     = m_sub,
     mDisCon_flow_nominal = {mDis_flow_nominal - i*m_sub*1.05 for i in 0:(nCon-1)},
-    lDis = {163.9, 163.9, 102.5, 102.5, 249.8, 249.8, 341.3, 341.3, 297.9, 297.9},
+    lDis = {163.9, 0.1, 102.5, 0.1, 249.8, 0.1, 341.3, 0.1, 297.9, 0.1},
     lEnd                  = 142.2,
     v_nominal             = 1.77,
     dIns                  = 0.03195,
@@ -135,12 +145,12 @@ model DHN_THV_3G_L_S_BASE_test
   Modelica.Thermal.HeatTransfer.Sources.FixedTemperature TGroDis[nCon + 1](
     each T = TGround)
     "Ground temperature for supply ring segments" annotation(
-    Placement(transformation(origin = {-110, -60}, extent = {{-10,-10},{10,10}})));
+    Placement(transformation(origin = {-130, -80}, extent = {{-10,-10},{10,10}})));
 
   Modelica.Thermal.HeatTransfer.Sources.FixedTemperature TGroRet[nCon](
     each T = TGround)
     "Ground temperature for return ring segments" annotation(
-    Placement(transformation(origin = {-110, -100}, extent = {{-10,-10},{10,10}})));
+    Placement(transformation(origin = {-130, -120}, extent = {{-10,-10},{10,10}})));
 
   // ---------------------------------------------------------------
   // Branch pipes to substations (10 segments, all DN25)
@@ -159,12 +169,6 @@ model DHN_THV_3G_L_S_BASE_test
 
 equation
 
- connect(src.port_bDis, dis.port_aDisSup) annotation(
-    Line(points = {{-140, -16}, {-40, -16}, {-40, -14}}, color = {0, 127, 255}));
- connect(dis.port_bDisRet, src.port_aDis) annotation(
-    Line(points = {{-40, -26}, {-140, -26}, {-140, -24}}, color = {0, 127, 255}));
- connect(dis.port_bDisSup, dis.port_aDisRet) annotation(
-    Line(points = {{40, -14}, {80, -14}, {80, -26}, {40, -26}}, color = {0, 127, 255}));
  connect(dis.ports_bCon, pipe_sub.port_aDisSup) annotation(
     Line(points = {{-24, 6}, {-24, 20}, {-6, 20}, {-6, 40}}, color = {0, 127, 255}, thickness = 0.5));
  connect(pipe_sub.port_bDisSup, ets.port_aSerHea) annotation(
@@ -174,9 +178,21 @@ equation
  connect(pipe_sub.port_bDisRet, dis.ports_aCon) annotation(
     Line(points = {{6, 40}, {6, 20}, {24, 20}, {24, 6}}, color = {0, 127, 255}, thickness = 0.5));
  connect(TGroDis.port, dis.heatPortsDis) annotation(
-    Line(points = {{-100, -60}, {-60, -60}, {-60, -6}, {16, -6}, {16, -10}}, color = {191, 0, 0}, thickness = 0.5));
+    Line(points = {{-120, -80}, {-60, -80}, {-60, -6}, {16, -6}, {16, -10}}, color = {191, 0, 0}, thickness = 0.5));
  connect(TGroRet.port, dis.heatPortsRet) annotation(
-    Line(points = {{-100, -100}, {-14, -100}, {-14, -30}}, color = {191, 0, 0}, thickness = 0.5));
+    Line(points = {{-120, -120}, {-14, -120}, {-14, -30}}, color = {191, 0, 0}, thickness = 0.5));
+ connect(src.port_bDis, jun_src.port_aSupIn) annotation(
+    Line(points = {{-140, -16}, {-104, -16}, {-104, -14}}, color = {0, 127, 255}));
+ connect(jun_src.port_bSupOut1, dis.port_aDisSup) annotation(
+    Line(points = {{-80, -14}, {-40, -14}}, color = {0, 127, 255}));
+ connect(dis.port_bDisSup, jun_src.port_aRetIn2) annotation(
+    Line(points = {{40, -14}, {80, -14}, {80, -50}, {-98, -50}, {-98, -32}}, color = {0, 127, 255}));
+ connect(src.port_aDis, jun_src.port_bRetOut) annotation(
+    Line(points = {{-140, -24}, {-104, -24}, {-104, -26}}, color = {0, 127, 255}));
+ connect(jun_src.port_aRetIn1, dis.port_bDisRet) annotation(
+    Line(points = {{-80, -26}, {-40, -26}}, color = {0, 127, 255}));
+ connect(dis.port_aDisRet, jun_src.port_bSupOut2) annotation(
+    Line(points = {{40, -26}, {100, -26}, {100, -60}, {-86, -60}, {-86, -32}}, color = {0, 127, 255}));
 
 annotation(
     uses(Buildings(version = "13.0.0"), Modelica(version = "4.1.0")),
