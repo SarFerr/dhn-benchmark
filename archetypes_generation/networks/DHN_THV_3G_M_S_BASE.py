@@ -44,7 +44,7 @@ importlib.reload(pl)
 from archetypes_generation.constants import (
     GEN_OPERATING, PIPE_CATALOGUE,
     LAMBDA_STEEL, LAMBDA_PUR, LAMBDA_HDPE, LAMBDA_SOIL,
-    ROUGHNESS_STEEL, BURIAL_DEPTH, T_GROUND,
+    ROUGHNESS_STEEL, BURIAL_DEPTH, H_EXT, T_GROUND,
     RHO_STEEL, CP_STEEL,
     RHO_PUR, CP_PUR,
     RHO_HDPE, CP_HDPE,
@@ -214,12 +214,12 @@ def u_linear(d_o, d_casing):
 
 def select_dn(Q_w):
     mdot = Q_w / (CP * DELTA_T)
-    for dn, (di, do, s, dc) in sorted(PIPE_CATALOGUE.items()):
+    for dn, (di, do, s, dc, sc) in sorted(PIPE_CATALOGUE.items()):
         A = math.pi * di ** 2 / 4.0
         if mdot / (RHO * A) <= V_MAX:
-            return dn, di, do, dc, s
-    dn, (di, do, s, dc) = sorted(PIPE_CATALOGUE.items())[-1]
-    return dn, di, do, dc, s
+            return dn, di, do, dc, s, sc
+    dn, (di, do, s, dc, sc) = sorted(PIPE_CATALOGUE.items())[-1]
+    return dn, di, do, dc, s, sc
 
 
 PIPE_SIZING = {}
@@ -237,7 +237,7 @@ for u, v in EDGES:
     else:
         Q = round(Q_PEAK_W * HEAT_LOSS_FACTOR, 1)
         ptype = "branch"
-    dn, di, do, dc, s = select_dn(Q)
+    dn, di, do, dc, s, sc = select_dn(Q)
 
     PIPE_SIZING[pid] = {
         "from_node": u,
@@ -247,9 +247,11 @@ for u, v in EDGES:
         "d_outer_m": do,
         "d_casing_m": dc,
         "wall_m": s,
-        "insulation_thickness_m": round((dc - do) / 2, 5),
+        "insulation_thickness_m": round((dc - do) / 2 - sc, 5),  # PUR only
+        "casing_thickness_m"    : sc,    # PyDHN: casing_thickness
         "DN_mm": dn,
-        "roughness_m": ROUGHNESS_STEEL,
+        "roughness_m"  : ROUGHNESS_STEEL,
+        "roughness_mm" : round(ROUGHNESS_STEEL * 1e3, 4),  # PyDHN: roughness
         "fluid_rho_kgm3": RHO,
         "fluid_cp_JkgK": CP,
         "fluid_mu_Pas": gp["mu"],
@@ -265,7 +267,8 @@ for u, v in EDGES:
         "HDPE_lambda_WmK": LAMBDA_HDPE,
         "burial_depth_m": BURIAL_DEPTH,
         "soil_lambda_WmK": LAMBDA_SOIL,
-        "T_ground_degC": T_GROUND,
+        "T_ground_degC" : T_GROUND,
+        "h_ext_Wm2K"    : H_EXT,         # PyDHN: h_ext
         "U_linear_WmK": u_linear(do, dc),
         "U_Wm2K": round(u_linear(do, dc) / (math.pi * do), 4),
     }
@@ -303,39 +306,15 @@ with open(os.path.join(OUT_DIR, "nodes.csv"), "w", newline="") as f:
         ])
 print(f"  nodes.csv    → {len(NODES)} rows")
 
-# pipes.csv
+# pipes.csv — all columns via DictWriter
 with open(os.path.join(OUT_DIR, "pipes.csv"), "w", newline="") as f:
-    w = csv.writer(f)
-    w.writerow([
-        "pipe_id", "from_node", "to_node",
-        "length_m", "d_inner_m", "d_outer_m", "d_casing_m", "wall_m",
-        "insulation_thickness_m",
-        "DN_mm", "roughness_m",
-        "fluid_rho_kgm3", "fluid_cp_JkgK", "fluid_mu_Pas", "fluid_lambda_WmK",
-        "steel_rho_kgm3", "steel_cp_JkgK", "steel_lambda_WmK",
-        "PUR_rho_kgm3", "PUR_cp_JkgK", "PUR_lambda_WmK",
-        "HDPE_rho_kgm3", "HDPE_cp_JkgK", "HDPE_lambda_WmK",
-        "burial_depth_m", "soil_lambda_WmK", "T_ground_degC",
-        "U_linear_WmK", "U_Wm2K",
-    ])
+    fieldnames = ["pipe_id"] + list(next(iter(PIPE_SIZING.values())).keys())
+    w = csv.DictWriter(f, fieldnames=fieldnames)
+    w.writeheader()
     for pid, d in PIPE_SIZING.items():
-        w.writerow([
-            pid,
-            d["from_node"],
-            d["to_node"],
-            d["length_m"],
-            d["d_inner_m"], d["d_outer_m"], d["d_casing_m"], d["wall_m"],
-            d["insulation_thickness_m"],
-            d["DN_mm"], d["roughness_m"],
-            d["fluid_rho_kgm3"], d["fluid_cp_JkgK"],
-            d["fluid_mu_Pas"],   d["fluid_lambda_WmK"],
-            d["steel_rho_kgm3"], d["steel_cp_JkgK"], d["steel_lambda_WmK"],
-            d["PUR_rho_kgm3"],   d["PUR_cp_JkgK"],   d["PUR_lambda_WmK"],
-            d["HDPE_rho_kgm3"],  d["HDPE_cp_JkgK"],  d["HDPE_lambda_WmK"],
-            d["burial_depth_m"], d["soil_lambda_WmK"], d["T_ground_degC"],
-            d["U_linear_WmK"], d["U_Wm2K"],
-        ])
-print(f"  pipes.csv    → {len(PIPE_SIZING)} rows")
+        w.writerow({"pipe_id": pid, **d})
+print(f"  pipes.csv            -> {len(PIPE_SIZING)} rows, "
+      f"{len(next(iter(PIPE_SIZING.values())))+1} columns")
 
 # ---------------------------------------------------------------------------
 # SECTION 7 — TOPOLOGY PLOT

@@ -13,7 +13,7 @@ from constants import (
     RHO_WATER_3G, CP_WATER_3G, MU_WATER_3G, LAMBDA_WATER_3G,
     RHO_WATER_4G, CP_WATER_4G, MU_WATER_4G, LAMBDA_WATER_4G,
     RHO_WATER_5G, CP_WATER_5G, MU_WATER_5G, LAMBDA_WATER_5G,
-    RHO_SOIL, CP_SOIL, LAMBDA_SOIL, T_GROUND, BURIAL_DEPTH,
+    RHO_SOIL, CP_SOIL, LAMBDA_SOIL, T_GROUND, BURIAL_DEPTH, H_EXT,
     RHO_STEEL, CP_STEEL, LAMBDA_STEEL, ROUGHNESS_STEEL, E_STEEL, ALPHA_STEEL,
     RHO_PUR, CP_PUR, LAMBDA_PUR,
     RHO_HDPE, CP_HDPE, LAMBDA_HDPE,
@@ -69,11 +69,12 @@ def main():
     section("2. SOIL — EN 13941, Central European standard conditions")
     hdr("parameter", "generation", "value", "unit", "description")
     for row in [
-        ("rho",          "-", RHO_SOIL,     "kg/m3",   "Density"),
-        ("cp",           "-", CP_SOIL,      "J/(kg·K)","Specific heat"),
-        ("lambda",       "-", LAMBDA_SOIL,  "W/(m·K)", "Thermal conductivity"),
-        ("T_ground",     "-", T_GROUND,     "°C",      "Undisturbed ground temperature"),
-        ("burial_depth", "-", BURIAL_DEPTH, "m",       "Pipe axis depth from ground"),
+        ("rho",          "-", RHO_SOIL,     "kg/m3",    "Density"),
+        ("cp",           "-", CP_SOIL,      "J/(kg·K)", "Specific heat"),
+        ("lambda",       "-", LAMBDA_SOIL,  "W/(m·K)",  "Thermal conductivity"),
+        ("T_ground",     "-", T_GROUND,     "°C",       "Undisturbed ground temperature"),
+        ("burial_depth", "-", BURIAL_DEPTH, "mm",       "Pipe axis depth from ground"),
+        ("h_ext",        "-", H_EXT,        "W/(m²·K)", "External heat transfer coefficient"),
     ]:
         rows.append(pad(row))
 

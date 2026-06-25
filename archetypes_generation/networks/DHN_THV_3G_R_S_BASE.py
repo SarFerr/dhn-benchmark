@@ -195,16 +195,18 @@ def u_linear(d_o, d_casing):
 
 
 def select_dn(Q_w):
-    """Select minimum DN satisfying v <= V_MAX."""
+    """Select minimum DN satisfying v <= V_MAX.
+    Returns: dn, d_inner, d_outer, d_casing, wall, casing_wall, mdot, velocity
+    """
     mdot = Q_w / (CP * DELTA_T)
-    for dn, (di, do, s, dc) in sorted(PIPE_CATALOGUE.items()):
+    for dn, (di, do, s, dc, sc) in sorted(PIPE_CATALOGUE.items()):
         A = math.pi * di**2 / 4.0
         v = mdot / (RHO * A)
         if v <= V_MAX:
-            return dn, di, do, dc, s, round(mdot, 4), round(v, 3)
-    dn, (di, do, s, dc) = sorted(PIPE_CATALOGUE.items())[-1]
+            return dn, di, do, dc, s, sc, round(mdot, 4), round(v, 3)
+    dn, (di, do, s, dc, sc) = sorted(PIPE_CATALOGUE.items())[-1]
     A = math.pi * di**2 / 4.0
-    return dn, di, do, dc, s, round(mdot, 4), round(mdot / (RHO * A), 3)
+    return dn, di, do, dc, s, sc, round(mdot, 4), round(mdot / (RHO * A), 3)
 
 
 G_dir  = nx.DiGraph()
@@ -228,37 +230,51 @@ for u, v in EDGES:
     pid  = f"{u}_{v}"
     Lp   = PIPE_L[(u, v)]
     Q    = downstream_load(u, v)
-    dn, di, do, dc, s, mdot, vel = select_dn(Q)
+    dn, di, do, dc, s, sc, mdot, vel = select_dn(Q)
     vol  = round(math.pi / 4 * di**2 * Lp, 6)
     tau  = round(vol / (mdot / RHO), 1)
 
+    ins_t = round((dc - do) / 2 - sc, 5)
+
     PIPE_SIZING[pid] = {
+        # --- identification ---
         "from_node"              : u,
         "to_node"                : v,
+        # --- geometry ---
         "length_m"               : Lp,
-        "d_inner_m"              : di,
-        "d_outer_m"              : do,
-        "d_casing_m"             : dc,
-        "wall_m"                 : s,
-        "insulation_thickness_m" : round((dc - do) / 2, 5),
         "DN_mm"                  : dn,
+        "d_inner_m"              : di,    # PyDHN: diameter
+        "d_outer_m"              : do,
+        "wall_m"                 : s,     # PyDHN: internal_pipe_thickness
+        "insulation_thickness_m" : ins_t, # PyDHN: insulation_thickness
+        "casing_thickness_m"     : sc,    # PyDHN: casing_thickness
+        "d_casing_m"             : dc,
+        # --- hydraulic ---
         "roughness_m"            : ROUGHNESS_STEEL,
+        "roughness_mm"           : round(ROUGHNESS_STEEL * 1e3, 4),  # PyDHN: roughness
+        # --- fluid properties at nominal operating temperature ---
         "fluid_rho_kgm3"         : RHO,
         "fluid_cp_JkgK"          : CP,
         "fluid_mu_Pas"           : gp["mu"],
         "fluid_lambda_WmK"       : gp["lambda"],
+        # --- steel carrier pipe ---
         "steel_rho_kgm3"         : RHO_STEEL,
         "steel_cp_JkgK"          : CP_STEEL,
-        "steel_lambda_WmK"       : LAMBDA_STEEL,
+        "steel_lambda_WmK"       : LAMBDA_STEEL,  # PyDHN: k_internal_pipe
+        # --- PUR foam insulation ---
         "PUR_rho_kgm3"           : RHO_PUR,
         "PUR_cp_JkgK"            : CP_PUR,
-        "PUR_lambda_WmK"         : LAMBDA_PUR,
+        "PUR_lambda_WmK"         : LAMBDA_PUR,    # PyDHN: k_insulation
+        # --- HDPE casing ---
         "HDPE_rho_kgm3"          : RHO_HDPE,
         "HDPE_cp_JkgK"           : CP_HDPE,
-        "HDPE_lambda_WmK"        : LAMBDA_HDPE,
-        "burial_depth_m"         : BURIAL_DEPTH,
+        "HDPE_lambda_WmK"        : LAMBDA_HDPE,   # PyDHN: k_casing
+        # --- burial and soil ---
+        "burial_depth_m"         : BURIAL_DEPTH,  # PyDHN: depth
         "soil_lambda_WmK"        : LAMBDA_SOIL,
         "T_ground_degC"          : T_GROUND,
+        "h_ext_Wm2K"             : H_EXT,         # PyDHN: h_ext
+        # --- heat loss coefficients ---
         "U_linear_WmK"           : u_linear(do, dc),
         "U_Wm2K"                 : round(u_linear(do, dc) / (math.pi * do), 4),
     }
