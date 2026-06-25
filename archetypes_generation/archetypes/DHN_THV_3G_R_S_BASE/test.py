@@ -19,7 +19,7 @@ from pydhn.solving import SimpleStep, Scheduler
 # ===========================================================================
 STEPSIZE      = 600    # time step [s]  (10 min)
 NUM_SIM_STEPS = 1008   # 7 days × 144 steps/day
-INIT_STEPS    = 6      # pre-heating steps (1 h)
+INIT_STEPS    = 144    # pre-heating steps (1 day)
 
 # ===========================================================================
 # 2. FILE PATHS
@@ -37,7 +37,7 @@ demand_profile_data = pd.read_csv(DEMAND_PROFILE_FILE)
 demand_profile_data = demand_profile_data[:NUM_SIM_STEPS]
 
 time_sim   = demand_profile_data["timestep"].values * STEPSIZE  # [s]
-heat_demand = demand_profile_data["Q_W"]                        # Series [W]
+heat_demand = demand_profile_data["Q_W"] * (STEPSIZE / 3600)    # [Wh]
 
 print(f"Loaded {len(node_data)} nodes, {len(pipe_data)} pipes, "
       f"{len(demand_profile_data)} time steps.")
@@ -90,7 +90,6 @@ for i in node_data.index:
             setpoint_type_hx  = "delta_t",
             setpoint_value_hx = -delta_t,          # K, negative = extraction
             design_delta_t    = delta_t,
-            t_out_min_hx      = 10,                # floor on return temp [°C]
             stepsize          = STEPSIZE,
         )
 
@@ -185,8 +184,8 @@ init_schedules = {
 }
 
 base_loop_init = SimpleStep(
-    hydraulic_sim_kwargs={"error_threshold": 1,    "verbose": False},
-    thermal_sim_kwargs  ={"error_threshold": 1e-10, "verbose": False},
+    hydraulic_sim_kwargs={"error_threshold": 1e-6, "verbose": False},
+    thermal_sim_kwargs  ={"error_threshold": 1e-6, "verbose": False},
     with_thermal=True,
 )
 
@@ -208,8 +207,8 @@ print(f"Pre-heating time: {time.perf_counter() - t0:.2f} s")
 print("--- Running with Scheduler (Full Simulation) ---")
 
 base_loop_scheduler = SimpleStep(
-    hydraulic_sim_kwargs={"error_threshold": 1,    "verbose": False},
-    thermal_sim_kwargs  ={"error_threshold": 1e-10, "verbose": False},
+    hydraulic_sim_kwargs={"error_threshold": 1e-6, "verbose": False},
+    thermal_sim_kwargs  ={"error_threshold": 1e-6, "verbose": False},
     with_thermal=True,
 )
 
