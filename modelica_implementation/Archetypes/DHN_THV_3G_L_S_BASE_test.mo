@@ -169,29 +169,40 @@ model DHN_THV_3G_L_S_BASE_test
 
 equation
 
- connect(dis.ports_bCon, pipe_sub.port_aDisSup) annotation(
+  // ---------------------------------------------------------------
+  // Substation connections
+  // ---------------------------------------------------------------
+  connect(dis.ports_bCon, pipe_sub.port_aDisSup) annotation(
     Line(points = {{-24, 6}, {-24, 20}, {-6, 20}, {-6, 40}}, color = {0, 127, 255}, thickness = 0.5));
- connect(pipe_sub.port_bDisSup, ets.port_aSerHea) annotation(
+  connect(pipe_sub.port_bDisSup, ets.port_aSerHea) annotation(
     Line(points = {{-6, 80}, {-6, 121}, {81, 121}}, color = {0, 127, 255}, thickness = 0.5));
- connect(ets.port_bSerHea, pipe_sub.port_aDisRet) annotation(
+  connect(ets.port_bSerHea, pipe_sub.port_aDisRet) annotation(
     Line(points = {{112, 122}, {120, 122}, {120, 100}, {6, 100}, {6, 80}}, color = {0, 127, 255}, thickness = 0.5));
- connect(pipe_sub.port_bDisRet, dis.ports_aCon) annotation(
+  connect(pipe_sub.port_bDisRet, dis.ports_aCon) annotation(
     Line(points = {{6, 40}, {6, 20}, {24, 20}, {24, 6}}, color = {0, 127, 255}, thickness = 0.5));
- connect(TGroDis.port, dis.heatPortsDis) annotation(
+  
+  // ---------------------------------------------------------------
+  // Heat port connections
+  // ---------------------------------------------------------------
+  connect(TGroDis.port, dis.heatPortsDis) annotation(
     Line(points = {{-120, -80}, {-60, -80}, {-60, -6}, {16, -6}, {16, -10}}, color = {191, 0, 0}, thickness = 0.5));
- connect(TGroRet.port, dis.heatPortsRet) annotation(
+  connect(TGroRet.port, dis.heatPortsRet) annotation(
     Line(points = {{-120, -120}, {-14, -120}, {-14, -30}}, color = {191, 0, 0}, thickness = 0.5));
- connect(src.port_bDis, jun_src.port_aSupIn) annotation(
+  
+  // ---------------------------------------------------------------
+  // Distribution network connections
+  // ---------------------------------------------------------------
+  connect(src.port_bDis, jun_src.port_aSupIn) annotation(
     Line(points = {{-140, -16}, {-104, -16}, {-104, -14}}, color = {0, 127, 255}));
- connect(jun_src.port_bSupOut1, dis.port_aDisSup) annotation(
+  connect(jun_src.port_bSupOut1, dis.port_aDisSup) annotation(
     Line(points = {{-80, -14}, {-40, -14}}, color = {0, 127, 255}));
- connect(dis.port_bDisSup, jun_src.port_aRetIn2) annotation(
+  connect(dis.port_bDisSup, jun_src.port_aRetIn2) annotation(
     Line(points = {{40, -14}, {80, -14}, {80, -50}, {-98, -50}, {-98, -32}}, color = {0, 127, 255}));
- connect(src.port_aDis, jun_src.port_bRetOut) annotation(
+  connect(src.port_aDis, jun_src.port_bRetOut) annotation(
     Line(points = {{-140, -24}, {-104, -24}, {-104, -26}}, color = {0, 127, 255}));
- connect(jun_src.port_aRetIn1, dis.port_bDisRet) annotation(
+  connect(jun_src.port_aRetIn1, dis.port_bDisRet) annotation(
     Line(points = {{-80, -26}, {-40, -26}}, color = {0, 127, 255}));
- connect(dis.port_aDisRet, jun_src.port_bSupOut2) annotation(
+  connect(dis.port_aDisRet, jun_src.port_bSupOut2) annotation(
     Line(points = {{40, -26}, {100, -26}, {100, -60}, {-86, -60}, {-86, -32}}, color = {0, 127, 255}));
 
 annotation(
