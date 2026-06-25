@@ -239,38 +239,49 @@ for u, v in EDGES:
         ptype = "branch"
     dn, di, do, dc, s, sc = select_dn(Q)
 
+    ins_t = round((dc - do) / 2 - sc, 5)
+
     PIPE_SIZING[pid] = {
-        "from_node": u,
-        "to_node": v,
-        "length_m": Lp,
-        "d_inner_m": di,
-        "d_outer_m": do,
-        "d_casing_m": dc,
-        "wall_m": s,
-        "insulation_thickness_m": round((dc - do) / 2 - sc, 5),  # PUR only
-        "casing_thickness_m"    : sc,    # PyDHN: casing_thickness
-        "DN_mm": dn,
-        "roughness_m"  : ROUGHNESS_STEEL,
-        "roughness_mm" : round(ROUGHNESS_STEEL * 1e3, 4),  # PyDHN: roughness
-        "fluid_rho_kgm3": RHO,
-        "fluid_cp_JkgK": CP,
-        "fluid_mu_Pas": gp["mu"],
-        "fluid_lambda_WmK": gp["lambda"],
-        "steel_rho_kgm3": RHO_STEEL,
-        "steel_cp_JkgK": CP_STEEL,
-        "steel_lambda_WmK": LAMBDA_STEEL,
-        "PUR_rho_kgm3": RHO_PUR,
-        "PUR_cp_JkgK": CP_PUR,
-        "PUR_lambda_WmK": LAMBDA_PUR,
-        "HDPE_rho_kgm3": RHO_HDPE,
-        "HDPE_cp_JkgK": CP_HDPE,
-        "HDPE_lambda_WmK": LAMBDA_HDPE,
-        "burial_depth_m": BURIAL_DEPTH,
-        "soil_lambda_WmK": LAMBDA_SOIL,
-        "T_ground_degC" : T_GROUND,
-        "h_ext_Wm2K"    : H_EXT,         # PyDHN: h_ext
-        "U_linear_WmK": u_linear(do, dc),
-        "U_Wm2K": round(u_linear(do, dc) / (math.pi * do), 4),
+        # --- identification ---
+        "from_node"              : u,
+        "to_node"                : v,
+        # --- geometry ---
+        "length_m"               : Lp,
+        "DN_mm"                  : dn,
+        "d_inner_m"              : di,    # PyDHN: diameter
+        "d_outer_m"              : do,
+        "wall_m"                 : s,     # PyDHN: internal_pipe_thickness
+        "insulation_thickness_m" : ins_t, # PyDHN: insulation_thickness
+        "casing_thickness_m"     : sc,    # PyDHN: casing_thickness
+        "d_casing_m"             : dc,
+        # --- hydraulic ---
+        "roughness_m"            : ROUGHNESS_STEEL,
+        "roughness_mm"           : round(ROUGHNESS_STEEL * 1e3, 4),  # PyDHN: roughness
+        # --- fluid properties at nominal operating temperature ---
+        "fluid_rho_kgm3"         : RHO,
+        "fluid_cp_JkgK"          : CP,
+        "fluid_mu_Pas"           : gp["mu"],
+        "fluid_lambda_WmK"       : gp["lambda"],
+        # --- steel carrier pipe ---
+        "steel_rho_kgm3"         : RHO_STEEL,
+        "steel_cp_JkgK"          : CP_STEEL,
+        "steel_lambda_WmK"       : LAMBDA_STEEL,  # PyDHN: k_internal_pipe
+        # --- PUR foam insulation ---
+        "PUR_rho_kgm3"           : RHO_PUR,
+        "PUR_cp_JkgK"            : CP_PUR,
+        "PUR_lambda_WmK"         : LAMBDA_PUR,    # PyDHN: k_insulation
+        # --- HDPE casing ---
+        "HDPE_rho_kgm3"          : RHO_HDPE,
+        "HDPE_cp_JkgK"           : CP_HDPE,
+        "HDPE_lambda_WmK"        : LAMBDA_HDPE,   # PyDHN: k_casing
+        # --- burial and soil ---
+        "burial_depth_m"         : BURIAL_DEPTH,  # PyDHN: depth
+        "soil_lambda_WmK"        : LAMBDA_SOIL,
+        "T_ground_degC"          : T_GROUND,
+        "h_ext_Wm2K"             : H_EXT,         # PyDHN: h_ext
+        # --- heat loss coefficients ---
+        "U_linear_WmK"           : u_linear(do, dc),
+        "U_Wm2K"                 : round(u_linear(do, dc) / (math.pi * do), 4),
     }
     print(f"{pid:<14} {u:<8} {v:<10} "
           f"{Lp:>7.1f} {Q / 1000:>7.1f} {dn:>5} {di * 1000:>8.1f}  [{ptype}]")
@@ -313,7 +324,7 @@ with open(os.path.join(OUT_DIR, "pipes.csv"), "w", newline="") as f:
     w.writeheader()
     for pid, d in PIPE_SIZING.items():
         w.writerow({"pipe_id": pid, **d})
-print(f"  pipes.csv            -> {len(PIPE_SIZING)} rows, "
+print(f"  pipes.csv    -> {len(PIPE_SIZING)} rows, "
       f"{len(next(iter(PIPE_SIZING.values())))+1} columns")
 
 # ---------------------------------------------------------------------------
