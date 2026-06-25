@@ -250,8 +250,7 @@ for u, v in EDGES:
         "casing_thickness_m"     : sc,    # PyDHN: casing_thickness
         "d_casing_m"             : dc,
         # --- hydraulic ---
-        "roughness_m"            : ROUGHNESS_STEEL,
-        "roughness_mm"           : round(ROUGHNESS_STEEL * 1e3, 4),  # PyDHN: roughness
+        "roughness_mm"            : ROUGHNESS_STEEL,
         # --- fluid properties at nominal operating temperature ---
         "fluid_rho_kgm3"         : RHO,
         "fluid_cp_JkgK"          : CP,
