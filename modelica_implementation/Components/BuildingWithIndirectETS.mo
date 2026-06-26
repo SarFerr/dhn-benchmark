@@ -13,7 +13,7 @@ model BuildingWithIndirectETS
   replaceable package MediumBui = Buildings.Media.Water
     "Building heating water medium";
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // File input
   // ---------------------------------------------------------------
    parameter String filNam
@@ -21,8 +21,7 @@ model BuildingWithIndirectETS
 
    parameter Real facMul = 1
     "Multiplier applied to the building peak load [-]";
- 
-  // ---------------------------------------------------------------
+ // ---------------------------------------------------------------
   // Temperature setpoints and design conditions
   // ---------------------------------------------------------------
   parameter Modelica.Units.SI.Temperature TDisSup_nominal = 273.15 + 80
@@ -40,14 +39,13 @@ model BuildingWithIndirectETS
 
   parameter Modelica.Units.SI.TemperatureDifference dTDis_nominal = 20
     "District-side nominal temperature difference across ETS [K]";
-  
   // ---------------------------------------------------------------
   // Fluid properties
   // ---------------------------------------------------------------
   parameter Modelica.Units.SI.SpecificHeatCapacity cpWat = 4180
     "Water specific heat capacity (approximate) [J/(kg·K)]";
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Derived nominal flow rates and loads
   // ---------------------------------------------------------------
   parameter Modelica.Units.SI.HeatFlowRate QHea_flow_nominal =
@@ -62,7 +60,7 @@ model BuildingWithIndirectETS
     QHea_flow_nominal / cpWat / dTDis_nominal
     "Nominal mass flow rate on the district side of the ETS [kg/s]";
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Building load model
   // ---------------------------------------------------------------
   Buildings.DHC.Loads.BaseClasses.BuildingTimeSeries bui(
@@ -97,8 +95,7 @@ model BuildingWithIndirectETS
       tau = 120))
     "Heating-only building load from time series" annotation(
     Placement(transformation(origin = {0, 60}, extent = {{-30, -30}, {30, 30}})));
-      
-  // ---------------------------------------------------------------
+      // ---------------------------------------------------------------
   // Energy Transfer Station (ETS)
   // ---------------------------------------------------------------
   Buildings.DHC.ETS.Heating.Indirect ets(
@@ -122,26 +119,9 @@ model BuildingWithIndirectETS
      k = THeaWatSup_nominal)
     "Building heating water supply setpoint" annotation(
     Placement(transformation(origin = {-80, 40}, extent = {{-10, -10}, {10, 10}})));
-   
   // ---------------------------------------------------------------
   // Instrumentation sensors — district side
   // ---------------------------------------------------------------
-  Buildings.Fluid.Sensors.TemperatureTwoPort senT_disSup(
-    redeclare package Medium = MediumSer,
-    m_flow_nominal    = mDis_flow_nominal,
-    allowFlowReversal = false,
-    tau               = 0)
-    "District supply temperature at ETS inlet [K]" annotation(
-    Placement(transformation(origin = {-65, -54}, extent = {{-10, -10}, {10, 10}})));
-
-  Buildings.Fluid.Sensors.TemperatureTwoPort senT_disRet(
-    redeclare package Medium = MediumSer,
-    m_flow_nominal    = mDis_flow_nominal,
-    allowFlowReversal = false,
-    tau               = 0)
-    "District return temperature at ETS outlet [K]" annotation(
-    Placement(transformation(origin = {65, -54}, extent = {{-10, -10}, {10, 10}})));
-  
   // ---------------------------------------------------------------
   // External fluid ports (district side)
   // ---------------------------------------------------------------
@@ -154,13 +134,11 @@ model BuildingWithIndirectETS
     redeclare package Medium = MediumSer)
     "District return from ETS" annotation(
     Placement(transformation(origin = {100, -54}, extent = {{-10, -10}, {10, 10}}), iconTransformation(origin = {100, -16}, extent = {{-10, -10}, {10, 10}})));
-  
   // ---------------------------------------------------------------
   // Output signals
   // ---------------------------------------------------------------
   Modelica.Blocks.Interfaces.RealOutput QHea_flow "Building heating load" annotation(
     Placement(transformation(origin = {130, 86}, extent = {{-10, -10}, {10, 10}}), iconTransformation(origin = {106, 24}, extent = {{-10, -10}, {10, 10}})));
-  
   // ---------------------------------------------------------------
   // Output signals
   // ---------------------------------------------------------------
@@ -183,14 +161,10 @@ equation
     Line(points = {{32, 86}, {130, 86}}, color = {0, 0, 127}));
   connect(expBui.ports[1], ets.ports_aHeaWat[1]) annotation(
     Line(points = {{-78, -4}, {-30, -4}}, color = {0, 127, 255}));
-  connect(port_aSerHea, senT_disSup.port_a) annotation(
-    Line(points = {{-100, -54}, {-74, -54}}));
-  connect(senT_disSup.port_b, ets.port_aSerHea) annotation(
-    Line(points = {{-54, -54}, {-30, -54}}, color = {0, 127, 255}));
-  connect(ets.port_bSerHea, senT_disRet.port_a) annotation(
-    Line(points = {{30, -54}, {56, -54}}, color = {0, 127, 255}));
-  connect(senT_disRet.port_b, port_bSerHea) annotation(
-    Line(points = {{76, -54}, {100, -54}}, color = {0, 127, 255}));
+  connect(port_aSerHea, ets.port_aSerHea) annotation(
+    Line(points = {{-100, -54}, {-30, -54}}));
+  connect(ets.port_bSerHea, port_bSerHea) annotation(
+    Line(points = {{30, -54}, {100, -54}}, color = {0, 127, 255}));
 
 annotation(
   uses(Buildings(version = "13.0.0"), Modelica(version = "4.1.0")),

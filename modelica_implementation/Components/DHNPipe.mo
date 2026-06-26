@@ -38,6 +38,9 @@ model DHNPipe
   // ---------------------------------------------------------------
   // Thermal boundary condition
   // ---------------------------------------------------------------
+    parameter Modelica.Units.SI.Temperature T_start = 273.15 + 80
+    "Initial temperature [K]";
+  
   parameter Modelica.Units.SI.Temperature TGround = 273.15 + 10
     "Undisturbed ground temperature [K]";
 
@@ -61,7 +64,9 @@ model DHNPipe
     final dh                = d_inner,
     final roughness         = roughness,
     final m_flow_nominal    = m_flow_nominal,
-    final allowFlowReversal = allowFlowReversal)
+    final allowFlowReversal = allowFlowReversal, 
+    T_start_in = T_start, 
+    T_start_out = T_start)
     "Supply pipe segment with plug-flow thermal transport" annotation(
     Placement(transformation(origin = {0, 40}, extent = {{-10, -10}, {10, 10}})));
 
@@ -76,7 +81,9 @@ model DHNPipe
     final dh                = d_inner,
     final roughness         = roughness,
     final m_flow_nominal    = m_flow_nominal,
-    final allowFlowReversal = allowFlowReversal)
+    final allowFlowReversal = allowFlowReversal, 
+    T_start_in = T_start, 
+    T_start_out = T_start)
     "Return pipe segment with plug-flow thermal transport" annotation(
     Placement(transformation(origin = {0, -40}, extent = {{10, 10}, {-10, -10}})));
 
@@ -140,7 +147,7 @@ model DHNPipe
     "Mass flow rate in return pipe [kg/s]" annotation(
     Placement(transformation(origin = {90, -40}, extent = {{10, -10}, {-10, 10}})));
 
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
   // Derived output variables
   // ---------------------------------------------------------------
   Modelica.Units.SI.Velocity v_sup
@@ -186,10 +193,9 @@ model DHNPipe
     iconTransformation(origin = {-100, -30}, extent = {{-10, -10}, {10, 10}})));
 
 equation
-
-  // ---------------------------------------------------------------
-  // Supply pipe connections
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Supply pipe connections
+// ---------------------------------------------------------------
   connect(port_aDisSup, senM_sup.port_a) annotation(
     Line(points = {{-120, 40}, {-100, 40}}));
   connect(senM_sup.port_b, senT_supIn.port_a) annotation(
@@ -202,10 +208,9 @@ equation
     Line(points = {{80, 40}, {120, 40}}, color = {0, 127, 255}));
   connect(TGroSup.port, pipSup.heatPort) annotation(
     Line(points = {{-80, 80}, {0, 80}, {0, 50}}, color = {191, 0, 0}));
-
-  // ---------------------------------------------------------------
-  // Return pipe connections
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Return pipe connections
+// ---------------------------------------------------------------
   connect(port_aDisRet, senM_ret.port_a) annotation(
     Line(points = {{120, -40}, {100, -40}}));
   connect(senM_ret.port_b, senT_retIn.port_a) annotation(
@@ -218,10 +223,9 @@ equation
     Line(points = {{-80, -40}, {-120, -40}}, color = {0, 127, 255}));
   connect(TGroRet.port, pipRet.heatPort) annotation(
     Line(points = {{-80, -80}, {0, -80}, {0, -50}}, color = {191, 0, 0}));
-
-  // ---------------------------------------------------------------
-  // Derived variable equations
-  // ---------------------------------------------------------------
+// ---------------------------------------------------------------
+// Derived variable equations
+// ---------------------------------------------------------------
   v_sup = abs(senM_sup.m_flow) /
           (rho_nominal * Modelica.Constants.pi * (d_inner / 2)^2);
 
