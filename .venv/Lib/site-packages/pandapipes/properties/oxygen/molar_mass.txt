@@ -1,0 +1,2 @@
+# molar mass of O2 in kg/kmol
+31.9988

@@ -1,0 +1,2 @@
+# lower heating value in kWh/kg (at nominal conditions). Source: gas supplier
+33.33
