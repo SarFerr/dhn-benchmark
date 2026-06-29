@@ -7,7 +7,9 @@ model BuildingWithIndirectETS
    The building loop includes its own expansion vessel and circulating pump 
    embedded in the BuildingTimeSeries model.
   "
-
+  
+  
+  
   replaceable package MediumSer = Buildings.Media.Water
     "District/service side medium";
   replaceable package MediumBui = Buildings.Media.Water
@@ -119,9 +121,7 @@ model BuildingWithIndirectETS
      k = THeaWatSup_nominal)
     "Building heating water supply setpoint" annotation(
     Placement(transformation(origin = {-80, 40}, extent = {{-10, -10}, {10, 10}})));
-  // ---------------------------------------------------------------
-  // Instrumentation sensors — district side
-  // ---------------------------------------------------------------
+  
   // ---------------------------------------------------------------
   // External fluid ports (district side)
   // ---------------------------------------------------------------
