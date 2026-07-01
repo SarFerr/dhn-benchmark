@@ -7,7 +7,7 @@
 #   Rule 2: pipe lengths sampled from U[100, 200] m, seed=42
 #   Rule 3: radial tree topology, depth 3, no loops (L=0)
 #
-# Outputs (data/DHN_THV_3G_R_S_BASE/):
+# Outputs (dhn_benchmark/archetypes/DHN_THV_3G_R_S_BASE/):
 #   nodes.csv     — node table with boundary conditions (supply + return)
 #   pipes.csv     — pipe table with all modelling parameters
 #   topology.png  — network topology plot (paper-ready, 300 dpi)

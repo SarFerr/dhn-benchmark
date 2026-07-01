@@ -7,12 +7,6 @@
 # - EN 253:2019 — Pre-insulated pipes for underground district heating
 # - EN 13941:2019 — Design and installation of pre-insulated pipes
 #
-# Symbols:
-# d_i [m] Carrier pipe inner diameter
-# d_o [m] Carrier pipe outer diameter
-# s   [m] Carrier pipe wall thickness
-# d_casing [m] HDPE casing outer diameter
-
 # ---------------------------------------------------------------------------
 # 1. WATER — heat transfer fluid
 # ---------------------------------------------------------------------------
