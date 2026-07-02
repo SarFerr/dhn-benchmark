@@ -206,6 +206,46 @@ class DistrictGenerator:
         self.build_buildings()
         return self
 
+    def plot_district(self):
+        fig, ax = plt.subplots(figsize=(14, 9))
+        ax.set_facecolor('#AAAAAA')
+
+        colors = ['#F0EEE8', '#EDEAE0', '#F2F0EA', '#EDE8E0']
+        for idx, block in enumerate(self.blocks):
+            ax.add_patch(
+                patches.Rectangle(
+                    (block["x"], block["y"]),
+                    block["width"],
+                    block["height"],
+                    facecolor=colors[idx % len(colors)],
+                    edgecolor='none',
+                    zorder=1
+                )
+            )
+
+        xs = [b["x"] for b in self.buildings]
+        ys = [b["y"] for b in self.buildings]
+
+        ax.scatter(
+            xs, ys,
+            color='#CC2200',
+            s=50,
+            marker='s',
+            edgecolors='white',
+            linewidths=0.4,
+            zorder=5,
+            label='Buildings'
+        )
+
+        ax.set_xlim(-20, self.width + 20)
+        ax.set_ylim(-20, self.height + 20)
+        ax.set_aspect('equal')
+        ax.axis('off')
+        ax.legend()
+
+        plt.tight_layout()
+        plt.show()
+
 
 # =====================================================================
 # 2. NETWORK BUILDER (Steiner Tree + Parametric Meshing)
@@ -341,7 +381,7 @@ class ThermalNetworkBuilder:
         for i, pipe in enumerate(self.branch_pipes):
             p1, p2 = pipe["from_pos"], pipe["to_pos"]
             ax.plot([p1[0], p2[0]], [p1[1], p2[1]],
-                    color='#FF8C00', lw=1.5, linestyle=':', label='Buildings Branch' if i == 0 else "", zorder=4)
+                    color='#FF8C00', lw=1.5, linestyle='-', label='Buildings Branch' if i == 0 else "", zorder=4)
 
         # Buildings
         xs = [b["x"] for b in self.district.buildings]
@@ -369,6 +409,7 @@ if __name__ == "__main__":
     # 1. Generate the synthetic district with single centerline grid topology
     district_gen = DistrictGenerator(n_substations=100, seed=42)
     district_gen.generate()
+    district_gen.plot_district()
 
     # 2. Build the optimized baseline tree network
     builder = ThermalNetworkBuilder(district_gen)
