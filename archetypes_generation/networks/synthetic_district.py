@@ -256,8 +256,9 @@ if __name__ == "__main__":
         rows=5, cols=7,
         street_width=15,
         n_substations=100,
+        block_variation=0.25,
+        perturbation=7,
         seed=42
-    ).generate()
-
-    # --- Plot ---
+    )
+    district.generate()
     district.plot_district()
