@@ -478,76 +478,69 @@ class ThermalNetworkBuilder:
 
     # ------------------------------------------------------------------
     def constrained_steiner_tree(self, beta=1.25, delta_eps=0.05,
-                                  weight="length"):
-        """
-        Constrained Steiner tree (Algorithm 2, Vieth et al. 2025).
+                                 weight="length"):
 
-        For multi-source networks, the DHN is initialised with all
-        generator nodes and l_max is computed from the closest source.
-
-        Parameters
-        ----------
-        beta      : float >= 1 — flexibility factor (1.25 for TG family)
-        delta_eps : float — fallback step size
-        weight    : str — physical length attribute
-        """
         if self.rou is None:
             raise RuntimeError("Call build_routing_graph() first.")
         if beta < 1:
             raise ValueError("beta must be >= 1.")
 
-        rou       = self.rou
-        tb        = self._TB_ATTR
+        rou = self.rou
+        tb = self._TB_ATTR
         terminals = list(self.building_nodes)
 
-        # l_max: from the closest generator to furthest terminal
-        # Single source: identical to original algorithm
-        # Multi-source: use minimum distance across all sources
         if len(self.generator_nodes) == 1:
             g = self.generator_nodes[0]
             sp_len, _ = nx.single_source_dijkstra(rou, g, weight=weight)
-            l_sp_max  = max(sp_len[n] for n in terminals)
+            l_sp_max = max(sp_len[n] for n in terminals)
         else:
             l_sp_max = 0.0
-            for g in self.generator_nodes:
-                sp_len, _ = nx.single_source_dijkstra(rou, g, weight=weight)
-                for n in terminals:
-                    if n in sp_len:
-                        l_sp_max = max(l_sp_max, sp_len[n])
+
+            for n in terminals:
+                min_dist_to_any_g = math.inf
+                for g in self.generator_nodes:
+                    try:
+                        d = nx.shortest_path_length(rou, g, n, weight=weight)
+                        if d < min_dist_to_any_g:
+                            min_dist_to_any_g = d
+                    except nx.NetworkXNoPath:
+                        continue
+                if min_dist_to_any_g != math.inf:
+                    l_sp_max = max(l_sp_max, min_dist_to_any_g)
 
         l_max = beta * l_sp_max
 
-        # Initialise DHN with all generator nodes
         dhn = nx.Graph()
         for g in self.generator_nodes:
             dhn.add_node(g, **rou.nodes[g])
-
-        # Primary generator for single-source path checks
-        g_primary = self.generator_nodes[0]
 
         unprocessed = set(terminals)
 
         while unprocessed:
             best_path, best_len = None, math.inf
 
-            # Greedy pass (Eq. 3)
             for r in unprocessed:
                 added_len, path_r = nx.multi_source_dijkstra(
                     rou, sources=set(dhn.nodes), target=r, weight=tb)
                 if added_len >= best_len:
                     continue
+
                 dhn_hat = dhn.copy()
                 self._add_path(dhn_hat, path_r)
-                # Check l_max constraint from nearest generator
-                try:
-                    l_gr = nx.shortest_path_length(
-                        dhn_hat, g_primary, r, weight=weight)
-                except nx.NetworkXNoPath:
-                    l_gr = math.inf
+
+                l_gr = math.inf
+                for g in self.generator_nodes:
+                    if g in dhn_hat:
+                        try:
+                            d = nx.shortest_path_length(dhn_hat, g, r, weight=weight)
+                            if d < l_gr:
+                                l_gr = d
+                        except nx.NetworkXNoPath:
+                            continue
+
                 if l_gr <= l_max:
                     best_path, best_len = path_r, added_len
 
-            # Fallback (Eq. 4-5)
             if best_path is None:
                 eps = delta_eps
                 while True:
@@ -555,26 +548,40 @@ class ThermalNetworkBuilder:
                         c = 0.0 if dhn.has_edge(u, v) else d[tb]
                         return _eps * d[tb] + (1.0 - _eps) * c
 
-                    w_len, w_paths = nx.single_source_dijkstra(
-                        rou, g_primary, weight=w)
-                    reachable = {n: w_len[n] for n in unprocessed
-                                 if n in w_len}
-                    r       = min(reachable, key=reachable.get)
-                    path_r  = w_paths[r]
+                    w_len, w_paths = nx.multi_source_dijkstra(
+                        rou, sources=set(self.generator_nodes), weight=w)
+
+                    reachable = {n: w_len[n] for n in unprocessed if n in w_len}
+                    if not reachable:
+                        break
+
+                    r = min(reachable, key=reachable.get)
+                    path_r = w_paths[r]
                     dhn_hat = dhn.copy()
                     self._add_path(dhn_hat, path_r)
-                    try:
-                        l_gr = nx.shortest_path_length(
-                            dhn_hat, g_primary, r, weight=weight)
-                    except nx.NetworkXNoPath:
-                        l_gr = math.inf
+
+                    l_gr = math.inf
+                    for g in self.generator_nodes:
+                        if g in dhn_hat:
+                            try:
+                                d = nx.shortest_path_length(dhn_hat, g, r, weight=weight)
+                                if d < l_gr:
+                                    l_gr = d
+                            except nx.NetworkXNoPath:
+                                continue
+
                     if l_gr <= l_max or eps >= 1.0:
                         best_path = path_r
                         break
                     eps = min(eps + delta_eps, 1.0)
 
-            self._add_path(dhn, best_path)
-            unprocessed.remove(best_path[-1])
+            if best_path is not None:
+                self._add_path(dhn, best_path)
+                unprocessed.remove(best_path[-1])
+            else:
+                r = unprocessed.pop()
+                _, path_r = nx.multi_source_dijkstra(rou, sources=set(dhn.nodes), target=r, weight=tb)
+                self._add_path(dhn, path_r)
 
         self.dhn = dhn
         return dhn
@@ -592,25 +599,40 @@ class ThermalNetworkBuilder:
             return nx_steiner_tree(self.rou, terminals, weight=weight)
 
     # ------------------------------------------------------------------
-    def metrics(self, dhn=None, weight="length"):
+    def metrics(self, dhn=None):
+        """
+        Computes topological metrics for the DHN.
+        CORRETTO per supportare configurazioni multi-sorgente.
+        """
         dhn = dhn if dhn is not None else self.dhn
         if dhn is None:
             raise RuntimeError("No DHN topology available.")
-        l_sum = sum(d[weight] for _,_,d in dhn.edges(data=True))
-        l_cc  = max(
-            nx.shortest_path_length(dhn, self.generator_node, n,
-                                     weight=weight)
-            for n in self.building_nodes)
-        N = dhn.number_of_nodes()
-        E = dhn.number_of_edges()
-        L = E - N + 1
+
+        # Lunghezza totale delle tubazioni (somma dei pesi reali degli archi)
+        l_tot = sum(d.get("length", 0.0) for _, _, d in dhn.edges(data=True))
+
+        # Calcolo del cammino critico (l_cc) dal generatore più vicino per ogni terminale
+        l_cc = 0.0
+        for n in self.building_nodes:
+            if n not in dhn:
+                continue
+            min_dist_to_any_g = math.inf
+            for g in self.generator_nodes:
+                if g in dhn:
+                    try:
+                        d = nx.shortest_path_length(dhn, g, n, weight="length")
+                        if d < min_dist_to_any_g:
+                            min_dist_to_any_g = d
+                    except nx.NetworkXNoPath:
+                        continue
+            if min_dist_to_any_g != math.inf:
+                l_cc = max(l_cc, min_dist_to_any_g)
+
         return {
-            "l_sum_m"  : l_sum,
-            "l_cc_m"   : l_cc,
-            "n_nodes"  : N,
-            "n_edges"  : E,
-            "is_meshed": not nx.is_tree(dhn),
-            "n_loops"  : L,
+            "L_tot_m": round(l_tot, 2),
+            "L_cc_m" : round(l_cc, 2),
+            "N_nodes": dhn.number_of_nodes(),
+            "N_edges": dhn.number_of_edges(),
         }
 
     # ------------------------------------------------------------------

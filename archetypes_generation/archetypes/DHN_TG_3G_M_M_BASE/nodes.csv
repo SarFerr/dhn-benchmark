@@ -1,5 +1,5 @@
 node_id,node_type,x_m,y_m,Q_peak_W,m_flow_nom_kg_s,T_supply_nom_degC,delta_T_nom_K,p_ref_bar
-src,source,48.08,40.72,,146.007,80.0,,10.0
+src,source,48.08,40.72,,166.865,80.0,,10.0
 jun0,junction,48.08,7.5,,,,,
 jun1,junction,187.92,7.5,,,,,
 jun2,junction,187.92,77.0,,,,,
