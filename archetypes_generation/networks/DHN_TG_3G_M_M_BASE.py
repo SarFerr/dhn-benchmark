@@ -173,10 +173,10 @@ for n in dhn.nodes():
     if kind == "substation":
         # find building id from building_nodes list
         b_idx = tnb.building_nodes.index(n)
-        nid   = f"sub_{b_idx}"
+        nid   = f"sub{b_idx}"
         ntype = "substation"
     else:
-        nid   = f"jun_{idx_j}"
+        nid   = f"jun{idx_j}"
         ntype = "junction"
         idx_j += 1
     node_id_map[n] = nid
@@ -233,8 +233,6 @@ def downstream_sub_count(node):
 
 PIPE_SIZING = {}
 
-# ← CHIAVE: itera su dhn.edges() non G_dir.edges()
-# Questo include gli archi di loop che bfs_tree escluderebbe
 for u, v in dhn.edges():
     # Determine flow orientation from BFS tree
     if G_dir.has_edge(u, v):
@@ -353,7 +351,7 @@ print(f"  pipes.csv  → {len(PIPE_SIZING)} rows")
 # ---------------------------------------------------------------------------
 tnb.plot(dhn=dhn,
          title=f"DHN_TG_3G_M_M_BASE",
-         show=True)
+         show=False)
 
 import matplotlib.pyplot as plt
 plot_path = os.path.join(OUT_DIR,"topology.png")

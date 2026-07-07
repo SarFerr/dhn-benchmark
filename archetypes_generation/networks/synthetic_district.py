@@ -223,7 +223,7 @@ class DistrictGenerator:
         return self
 
     # ------------------------------------------------------------------
-    def plot_district(self, ax=None, show=True):
+    def plot_district(self, ax=None, show=True, show_buildings=True):
         if ax is None:
             fig, ax = plt.subplots(figsize=(14, 9))
         ax.set_facecolor('#AAAAAA')
@@ -233,17 +233,19 @@ class DistrictGenerator:
                 (b["x"], b["y"]), b["width"], b["height"],
                 facecolor=colors[idx % len(colors)],
                 edgecolor='none', zorder=1))
-        xs = [b["x"] for b in self.buildings]
-        ys = [b["y"] for b in self.buildings]
-        ax.scatter(xs, ys, color='#CC2200', s=50, marker='s',
-                   edgecolors='white', linewidths=0.4, zorder=5,
-                   label='Substations')
-        ax.set_xlim(-20, self.width+20)
-        ax.set_ylim(-20, self.height+20)
-        ax.set_title("Synthetic Urban District", fontweight="bold", fontsize=12)
-        ax.set_aspect('equal'); ax.axis('off')
+        if show_buildings:
+            xs = [b["x"] for b in self.buildings]
+            ys = [b["y"] for b in self.buildings]
+            ax.scatter(xs, ys, facecolor='#CCCCFF', s=50, marker='o',
+                       edgecolors='blue', linewidths=0.4, zorder=5,
+                       label='Substations')
+        ax.set_xlim(-20, self.width + 20)
+        ax.set_ylim(-20, self.height + 20)
+        ax.set_aspect('equal')
+        ax.axis('off')
         if show:
-            plt.tight_layout(); plt.show()
+            plt.tight_layout()
+            plt.show()
 
 
 if __name__ == "__main__":
@@ -260,9 +262,6 @@ if __name__ == "__main__":
     )
     district.generate()
     district.plot_district()
-
-
-# =====================================================================
 
 
 # =====================================================================
@@ -626,65 +625,20 @@ class ThermalNetworkBuilder:
             self.district.plot_district(ax=ax, show=False)
         pos = nx.get_node_attributes(self.rou, "pos")
         nx.draw_networkx_edges(dhn, pos, ax=ax,
-                               edge_color="#CC2200", width=2.2, alpha=0.9)
+                               edge_color="black", width=1.0, alpha=1.0)
         sub_nodes = [n for n in dhn.nodes if n in self.building_nodes]
         nx.draw_networkx_nodes(dhn, pos, nodelist=sub_nodes, ax=ax,
-                               node_color="#222222", node_size=22, linewidths=0)
-        nx.draw_networkx_nodes(dhn, pos, nodelist=self.generator_nodes,
-                               ax=ax, node_color="#FFB300", node_size=140,
-                               edgecolors="black", linewidths=1.0)
+                               node_color="#CCCCFF", node_size=22,
+                               edgecolors="blue", linewidths=1.2)
+        nx.draw_networkx_nodes(dhn, pos, nodelist=self.generator_nodes, ax=ax,
+                               node_color="blue", node_size=140,
+                               edgecolors="blue", linewidths=1.2)
+        junction_nodes = [n for n in dhn.nodes
+                          if n not in self.building_nodes
+                          and n not in self.generator_nodes]
+        nx.draw_networkx_nodes(dhn, pos, nodelist=junction_nodes, ax=ax,
+                               node_color="black", node_size=22, linewidths=0)
         ax.set_title(title, fontweight="bold", fontsize=12)
         if show:
             plt.tight_layout(); plt.show()
         return ax
-
-    # ------------------------------------------------------------------
-    def assign_heat_demand(self, seed=1, mu=3.5, sigma=0.6, constant=None):
-        if not self.building_nodes:
-            raise RuntimeError("Call build_routing_graph() first.")
-        if constant is not None:
-            self.heat_demand = {n: float(constant) for n in self.building_nodes}
-            return self.heat_demand
-        rng = random.Random(seed)
-        self.heat_demand = {n: rng.lognormvariate(mu, sigma)
-                             for n in self.building_nodes}
-        return self.heat_demand
-
-    # ------------------------------------------------------------------
-    def run_benchmark(self, betas=(1.0, 1.25, 1.5), weight="length"):
-        """Runs shortest-path, constrained Steiner (each beta), and Kou."""
-        if self.rou is None:
-            raise RuntimeError("Call build_routing_graph() first.")
-        results = []
-        t0  = time.perf_counter()
-        dhn = self.shortest_path_topology(weight=weight)
-        results.append(("shortest path search", dhn,
-                         {**self.metrics(dhn,weight),
-                          "t_comp_s": time.perf_counter()-t0}))
-        for beta in betas:
-            t0  = time.perf_counter()
-            dhn = self.constrained_steiner_tree(beta=beta, weight=weight)
-            results.append((f"constrained Steiner (beta={beta:g})", dhn,
-                             {**self.metrics(dhn,weight),
-                              "t_comp_s": time.perf_counter()-t0}))
-        t0  = time.perf_counter()
-        dhn = self.steiner_tree_topology(weight=weight)
-        results.append(("Kou (networkX)", dhn,
-                         {**self.metrics(dhn,weight),
-                          "t_comp_s": time.perf_counter()-t0}))
-        self.benchmark_results = results
-        self.dhn = results[1][1]
-        return results
-
-    # ------------------------------------------------------------------
-    def print_benchmark_table(self, results=None):
-        results = results or getattr(self,"benchmark_results",None)
-        if results is None:
-            raise RuntimeError("Call run_benchmark() first.")
-        hdr = (f"{'Algorithm':32s} {'l_sum [km]':>11s} {'l_cc [km]':>11s} "
-               f"{'t_comp [s]':>11s} {'meshed':>8s} {'loops':>6s}")
-        print(hdr); print("-"*len(hdr))
-        for label,_,m in results:
-            print(f"{label:32s} {m['l_sum_m']/1000:11.3f} "
-                  f"{m['l_cc_m']/1000:11.3f} {m['t_comp_s']:11.3f} "
-                  f"{str(m['is_meshed']):>8s} {m['n_loops']:>6d}")

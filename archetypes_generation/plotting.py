@@ -1,10 +1,10 @@
 # plotting.py
 #
-# Standard plot function for DHN benchmark network topologies.
+# Standard plot function for DHN benchmark network topologies with Methodology I.
 #
 # Usage:
 #   from archetypes_generation.plotting import plot_topology
-#   plot_topology(NODES, EDGES, title="DHN_THV_3G_R_S_BASE")
+#   plot_topology(NODES, EDGES, title)
 
 import matplotlib.pyplot as plt
 
@@ -24,7 +24,7 @@ NODE_STYLE = {
     # type       : (facecolor,  edgecolor, lw,  alpha)
     "source"     : ("blue",     "blue",    1.2,  1.0),
     "junction"   : ("black",    "black",   1.2,  1.0),
-    "substation" : ("#CCCCFF",   "blue",   1.2,  1.0),
+    "substation" : ("#CCCCFF",  "blue",    1.2,  1.0),
 }
 
 
