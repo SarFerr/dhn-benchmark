@@ -142,7 +142,7 @@ L = E - N + 1
 
 assert N == 19, f"Expected 19 nodes, got {N}"
 assert E == 26, f"Expected 26 edges, got {E}"
-assert L == 8, f"Expected 8 loops, got {L}"
+assert L == 8,  f"Expected 8 loops, got {L}"
 assert sum(1 for n in NODES if n[1] == "source") == 1
 assert sum(1 for n in NODES if n[1] == "junction") == 8
 assert sum(1 for n in NODES if n[1] == "substation") == 10
