@@ -463,7 +463,7 @@ prosumer_handle = mlines.Line2D([], [], color='none',
                                 markerfacecolor="#CCCCFF",
                                 markeredgecolor="blue",
                                 markeredgewidth=2.0,
-                                label="Prosumer source")
+                                label="Prosumers")
 
 handles.append(prosumer_handle)
 ax.legend(handles=handles, loc="lower right",
