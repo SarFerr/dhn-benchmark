@@ -87,7 +87,7 @@ T_SUPPLY = gp["T_supply_nom"]  # 70°C (upper envelope, peak winter)
 P_REF_BAR = gp["P_nom_bar"]  # 6 bar
 
 Q_PEAK_W = Q_PEAK_W  # W per substation
-HLF = 1.20  # heat loss factor
+HLF = 1.10  # heat loss factor
 
 
 def unpack_pipe(vals):
