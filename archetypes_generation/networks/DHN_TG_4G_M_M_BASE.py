@@ -7,7 +7,7 @@
 #   Step 2: Street graph
 #   Step 3: Constrained Steiner tree beta=1.00
 #
-# Operating conditions (Section 5.2.2 — 4GDH, VF-VT):
+# Operating conditions (4GDH, VF-VT):
 #   Control    : VF-VT (variable flow, variable temperature)
 #   T_supply   : 50–70°C (climatically adjusted setpoint)
 #   delta_T    : 20 K at substations

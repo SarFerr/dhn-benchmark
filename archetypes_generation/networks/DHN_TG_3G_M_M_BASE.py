@@ -7,7 +7,7 @@
 #   Step 2: Street graph (StreetGraphBuilder)
 #   Step 3: Constrained Steiner tree beta=1.25 (ThermalNetworkBuilder)
 #
-# # Operating conditions:
+# # Operating conditions (3GDH):
 #   Control    : CF-VT (constant flow, variable temperature)
 #   T_supply   : 80°C nominal (variable in operation)
 #   delta_T    : 30 K at substations

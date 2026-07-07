@@ -602,16 +602,13 @@ class ThermalNetworkBuilder:
     def metrics(self, dhn=None):
         """
         Computes topological metrics for the DHN.
-        CORRETTO per supportare configurazioni multi-sorgente.
         """
         dhn = dhn if dhn is not None else self.dhn
         if dhn is None:
             raise RuntimeError("No DHN topology available.")
 
-        # Lunghezza totale delle tubazioni (somma dei pesi reali degli archi)
         l_tot = sum(d.get("length", 0.0) for _, _, d in dhn.edges(data=True))
 
-        # Calcolo del cammino critico (l_cc) dal generatore più vicino per ogni terminale
         l_cc = 0.0
         for n in self.building_nodes:
             if n not in dhn:
