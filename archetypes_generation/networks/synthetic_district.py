@@ -526,8 +526,12 @@ class ThermalNetworkBuilder:
 
         # Initialise DHN with all generator nodes
         dhn = nx.Graph()
-        for g in self.generator_nodes:
-            dhn.add_node(g, **rou.nodes[g])
+        dhn.add_node(self.generator_nodes[0],
+                     **rou.nodes[self.generator_nodes[0]])
+        for g in self.generator_nodes[1:]:
+            _, path = nx.single_source_dijkstra(
+                rou, self.generator_nodes[0], target=g, weight=tb)
+            self._add_path(dhn, path)
 
         unprocessed = set(terminals)
 
@@ -600,59 +604,6 @@ class ThermalNetworkBuilder:
         return dhn
 
     # ------------------------------------------------------------------
-    def add_mesh_layers(self, max_extra_edges=5):
-        """
-        Loop augmentation — adds loop-closing edges to the Steiner tree.
-
-        After constrained_steiner_tree() produces a radial base (L=0),
-        adds up to max_extra_edges unused routing-graph edges whose both
-        endpoints are already in the network, sorted by length (shortest
-        first). Each added edge increases L by exactly 1.
-
-        Physically motivated by hydraulic redundancy:
-          3G — security of supply from single source
-          4G — balancing between distributed sources
-
-        Parameters
-        ----------
-        max_extra_edges : int — number of loop-closing edges to add
-
-        Returns
-        -------
-        nx.Graph — augmented DHN (also stored in self.dhn)
-        """
-        if self.dhn is None:
-            raise RuntimeError(
-                "Call constrained_steiner_tree() first.")
-
-        dhn = nx.Graph(self.dhn)
-
-        # Candidate edges: both endpoints in dhn, not yet in dhn
-        candidates = []
-        for u, v, data in self.rou.edges(data=True):
-            if dhn.has_edge(u, v):
-                continue
-            if u in dhn.nodes() and v in dhn.nodes():
-                candidates.append((data.get("length", 1.0), u, v, data))
-        candidates.sort(key=lambda x: x[0])
-
-        added = 0
-        for length, u, v, data in candidates:
-            if added >= max_extra_edges:
-                break
-            dhn.add_edge(u, v, **data)
-            added += 1
-
-        N = dhn.number_of_nodes()
-        E = dhn.number_of_edges()
-        L = E - N + 1
-        print(f"  add_mesh_layers: +{added} edges → "
-              f"N={N}, E={E}, L={L}, α={L/max(2*N-5,1):.4f}")
-
-        self.dhn = dhn
-        return dhn
-
-    # ------------------------------------------------------------------
     def steiner_tree_topology(self, weight="length", method="kou"):
         """Unconstrained Steiner tree (Kou/Mehlhorn via networkX)."""
         if self.rou is None:
@@ -691,16 +642,18 @@ class ThermalNetworkBuilder:
 
         N = dhn.number_of_nodes()
         E = dhn.number_of_edges()
+        C = nx.number_connected_components(dhn)
         L = E - N + 1
         return {
-            "L_tot_m"  : round(l_tot, 2),
-            "L_cc_m"   : round(l_cc,  2),
-            "N_nodes"  : N,
-            "N_edges"  : E,
-            "L_loops"  : L,
-            "alpha"    : round(L / max(2*N-5, 1), 4),
-            "is_meshed": not nx.is_tree(dhn),
-            "connected": nx.is_connected(dhn),
+            "L_tot_m": round(l_tot, 2),
+            "L_cc_m": round(l_cc, 2),
+            "N_nodes": N,
+            "N_edges": E,
+            "N_components": C,
+            "L_loops": L,
+            "alpha": round(L / max(2 * N - 5, 1), 4),
+            "is_meshed": L > 0 and C == 1,
+            "connected": C == 1,
         }
 
     # ------------------------------------------------------------------

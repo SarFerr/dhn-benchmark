@@ -75,7 +75,7 @@ BLOCK_VAR = 0.25
 PERTURBATION = 7
 
 # Network
-BETA = 1.25  # constrained Steiner flexibility factor
+BETA = 1.00  # constrained Steiner flexibility factor
 
 # 4GDH operating parameters (VF-VT, peak winter BASE scenario)
 gp = GEN_OPERATING["4G"]
@@ -143,25 +143,17 @@ src1_block = district.blocks[src1_col * district.rows + src1_row]
 gen_pos1   = (src1_block["x"] + src1_block["width"]  * 2/3,
               src1_block["y"] + src1_block["height"] * 2/3)
 
-# src2 — left-top (col=1, row=4)
-src2_col   = int(COLS * 0.25)
-src2_row   = ROWS - 1
-src2_block = district.blocks[src2_col * district.rows + src2_row]
-gen_pos2   = (src2_block["x"] + src2_block["width"]  * 4/5,
-              src2_block["y"] + src2_block["height"] * 4/5)
 
 print(f"  src0 position: {gen_pos0}")
 print(f"  src1 position: {gen_pos1}")
-print(f"  src2 position: {gen_pos2}")
 
 tnb = ThermalNetworkBuilder(
     street_graph,
     district,
-    generator_pos=[gen_pos0, gen_pos1, gen_pos2],
+    generator_pos=[gen_pos0, gen_pos1],
 )
 tnb.build_routing_graph()
 dhn = tnb.constrained_steiner_tree(beta=BETA)
-dhn = tnb.add_mesh_layers(max_extra_edges=5)
 
 m = tnb.metrics(dhn)
 print(f"\nTopological metrics:")

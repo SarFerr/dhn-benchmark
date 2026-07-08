@@ -83,7 +83,7 @@ BLOCK_VAR      = 0.25
 PERTURBATION   = 7
 
 # Network
-BETA           = 1.25
+BETA           = 1.00
 N_PROSUMER_SRC = 5          # 5% of N_sub
 
 # 5GDHC operating parameters
@@ -188,7 +188,6 @@ print(f"  Backup source (bottom-left): {backup_pos}")
 tnb = ThermalNetworkBuilder(street_graph, district, backup_pos)
 tnb.build_routing_graph()
 dhn = tnb.constrained_steiner_tree(beta=BETA)
-dhn = tnb.add_mesh_layers(max_extra_edges=5)
 
 m = tnb.metrics(dhn)
 print(f"\nTopological metrics:")
