@@ -68,7 +68,7 @@ BLOCK_VAR       = 0.25
 PERTURBATION    = 7           # m
 
 # Network
-BETA            = 1.00        # constrained Steiner flexibility factor
+BETA            = 1.25        # constrained Steiner flexibility factor
 
 # 3GDH operating parameters (CF-VT)
 gp          = GEN_OPERATING["3G"]
@@ -136,6 +136,7 @@ gen_pos   = (src_block["x"] + src_block["width"]  / 5,
 tnb = ThermalNetworkBuilder(street_graph, district, gen_pos)
 tnb.build_routing_graph()
 dhn = tnb.constrained_steiner_tree(beta=BETA)
+dhn = tnb.add_mesh_layers(max_extra_edges=5)
 
 m = tnb.metrics(dhn)
 print(f"\nTopological metrics:")

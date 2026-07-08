@@ -75,7 +75,7 @@ BLOCK_VAR = 0.25
 PERTURBATION = 7
 
 # Network
-BETA = 1.00  # constrained Steiner flexibility factor
+BETA = 1.25  # constrained Steiner flexibility factor
 
 # 4GDH operating parameters (VF-VT, peak winter BASE scenario)
 gp = GEN_OPERATING["4G"]
@@ -131,24 +131,24 @@ print(f"  Nodes: {street_graph.number_of_nodes()}, "
 # ---------------------------------------------------------------------------
 print(f"\nStep 3 — Constrained Steiner tree (β={BETA}, 3 sources)...")
 
-# src0
+# src0 — bottom-left peripheral (col=0, row=0)
 src0_block = district.blocks[0 * district.rows + 0]
-gen_pos0 = (src0_block["x"] + src0_block["width"] / 5,
-            src0_block["y"] + src0_block["height"] / 5)
+gen_pos0   = (src0_block["x"] + src0_block["width"]  / 5,
+              src0_block["y"] + src0_block["height"] / 5)
 
-# src1
-src1_col = int(COLS * 0.75)
-src1_row = ROWS // 2
+# src1 — right-centre (col=5, row=2)
+src1_col   = int(COLS * 0.75)
+src1_row   = ROWS // 2
 src1_block = district.blocks[src1_col * district.rows + src1_row]
-gen_pos1 = (src1_block["x"] + src1_block["width"] * 2 / 3,
-            src1_block["y"] + src1_block["height"] * 2 / 3)
+gen_pos1   = (src1_block["x"] + src1_block["width"]  * 2/3,
+              src1_block["y"] + src1_block["height"] * 2/3)
 
-# src2
-src2_col = COLS // 2
-src2_row = ROWS - 1
+# src2 — left-top (col=1, row=4)
+src2_col   = int(COLS * 0.25)
+src2_row   = ROWS - 1
 src2_block = district.blocks[src2_col * district.rows + src2_row]
-gen_pos2 = (src2_block["x"] + src2_block["width"] * 1 / 2,
-            src2_block["y"] + src2_block["height"] * 4 / 5)
+gen_pos2   = (src2_block["x"] + src2_block["width"]  * 4/5,
+              src2_block["y"] + src2_block["height"] * 4/5)
 
 print(f"  src0 position: {gen_pos0}")
 print(f"  src1 position: {gen_pos1}")
@@ -161,6 +161,7 @@ tnb = ThermalNetworkBuilder(
 )
 tnb.build_routing_graph()
 dhn = tnb.constrained_steiner_tree(beta=BETA)
+dhn = tnb.add_mesh_layers(max_extra_edges=5)
 
 m = tnb.metrics(dhn)
 print(f"\nTopological metrics:")

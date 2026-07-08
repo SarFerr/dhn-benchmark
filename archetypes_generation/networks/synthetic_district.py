@@ -327,7 +327,8 @@ class StreetGraphBuilder:
 # =====================================================================
 # 3. THERMAL NETWORK BUILDER
 # =====================================================================
-# Topology generation via the constrained Steiner algorithm with multiple sources
+# Topology generation via the constrained Steiner algorithm.
+# Supports single and multiple source configurations.
 # Reference: Vieth et al. (2025), Algorithm 2.
 
 import hashlib
@@ -339,6 +340,12 @@ class ThermalNetworkBuilder:
     consumer substations and the heat source onto the support street
     graph (edge splitting), then finds the optimal DHN topology G_dhn
     via the constrained Steiner tree algorithm (Vieth et al. 2025).
+
+    Workflow:
+        1. build_routing_graph()         — project all nodes onto streets
+        2. constrained_steiner_tree()    — radial base topology (L=0)
+        3. add_mesh_layers()             — loop augmentation (L>0)
+        4. metrics() / plot()            — analysis and visualisation
 
     Parameters
     ----------
@@ -365,13 +372,11 @@ class ThermalNetworkBuilder:
         else:
             self._generator_positions = list(generator_pos)
 
-        # Primary generator_pos (single source, backward compatible)
-        self.generator_pos  = self._generator_positions[0]
-
-        self.rou            = None
-        self.dhn            = None
-        self.generator_node = None          # primary source node
-        self.generator_nodes = []           # all source nodes (multi-source)
+        self.generator_pos   = self._generator_positions[0]
+        self.rou             = None
+        self.dhn             = None
+        self.generator_node  = None   # primary source node
+        self.generator_nodes = []     # all source nodes
         self.building_nodes  = []
         self._proj_counter   = 0
 
@@ -379,9 +384,9 @@ class ThermalNetworkBuilder:
     def build_routing_graph(self):
         """Projects every substation and source(s) onto the closest
         street edge, splitting it at the projection point."""
-        self.rou            = self.street_graph.copy()
-        self.building_nodes = []
-        self.generator_nodes= []
+        self.rou             = self.street_graph.copy()
+        self.building_nodes  = []
+        self.generator_nodes = []
 
         for b in self.district.buildings:
             node_id = self._connect_point(
@@ -393,9 +398,7 @@ class ThermalNetworkBuilder:
                 ("gen", k), pos[0], pos[1], kind="generator")
             self.generator_nodes.append(node_id)
 
-        # Primary generator node (backward compatible)
         self.generator_node = self.generator_nodes[0]
-
         self._assign_tiebreak_weights()
 
         if not nx.is_connected(self.rou):
@@ -415,7 +418,7 @@ class ThermalNetworkBuilder:
             proj_pt = geom.interpolate(geom.project(p))
             d       = proj_pt.distance(p)
             if d < best_dist:
-                best_uv, best_proj, best_dist = (u,v), proj_pt, d
+                best_uv, best_proj, best_dist = (u, v), proj_pt, d
 
         if best_uv is None:
             raise RuntimeError("No street edge available to project onto.")
@@ -450,8 +453,8 @@ class ThermalNetworkBuilder:
     # ------------------------------------------------------------------
     def _assign_tiebreak_weights(self, weight="length", eps=1e-9):
         for u, v, d in self.rou.edges(data=True):
-            key = f"{u}|{v}" if str(u)<str(v) else f"{v}|{u}"
-            tb  = int(hashlib.md5(key.encode()).hexdigest(),16) % 10_000 / 10_000.0
+            key = f"{u}|{v}" if str(u) < str(v) else f"{v}|{u}"
+            tb  = int(hashlib.md5(key.encode()).hexdigest(), 16) % 10_000 / 10_000.0
             d[self._TB_ATTR] = d[weight] * (1.0 + eps * tb)
 
     # ------------------------------------------------------------------
@@ -471,45 +474,57 @@ class ThermalNetworkBuilder:
         _, paths = nx.single_source_dijkstra(
             self.rou, self.generator_node, weight=self._TB_ATTR)
         dhn = nx.Graph()
-        dhn.add_node(self.generator_node, **self.rou.nodes[self.generator_node])
+        dhn.add_node(self.generator_node,
+                     **self.rou.nodes[self.generator_node])
         for n in self.building_nodes:
             self._add_path(dhn, paths[n])
         return dhn
 
     # ------------------------------------------------------------------
     def constrained_steiner_tree(self, beta=1.25, delta_eps=0.05,
-                                 weight="length"):
+                                  weight="length"):
+        """
+        Constrained Steiner tree (Algorithm 2, Vieth et al. 2025).
+        Produces a radial base topology with L=0 hydraulic loops.
+        For meshed topologies call add_mesh_layers() afterwards.
 
+        Parameters
+        ----------
+        beta      : float >= 1 — flexibility factor (1.0 for TG family)
+        delta_eps : float — fallback step size
+        weight    : str   — physical length edge attribute
+        """
         if self.rou is None:
             raise RuntimeError("Call build_routing_graph() first.")
         if beta < 1:
             raise ValueError("beta must be >= 1.")
 
-        rou = self.rou
-        tb = self._TB_ATTR
+        rou       = self.rou
+        tb        = self._TB_ATTR
         terminals = list(self.building_nodes)
 
+        # l_max: single-source uses g directly; multi-source uses
+        # minimum distance from any generator to each terminal
         if len(self.generator_nodes) == 1:
             g = self.generator_nodes[0]
             sp_len, _ = nx.single_source_dijkstra(rou, g, weight=weight)
-            l_sp_max = max(sp_len[n] for n in terminals)
+            l_sp_max  = max(sp_len[n] for n in terminals)
         else:
             l_sp_max = 0.0
-
             for n in terminals:
-                min_dist_to_any_g = math.inf
+                min_d = math.inf
                 for g in self.generator_nodes:
                     try:
                         d = nx.shortest_path_length(rou, g, n, weight=weight)
-                        if d < min_dist_to_any_g:
-                            min_dist_to_any_g = d
+                        min_d = min(min_d, d)
                     except nx.NetworkXNoPath:
                         continue
-                if min_dist_to_any_g != math.inf:
-                    l_sp_max = max(l_sp_max, min_dist_to_any_g)
+                if min_d != math.inf:
+                    l_sp_max = max(l_sp_max, min_d)
 
         l_max = beta * l_sp_max
 
+        # Initialise DHN with all generator nodes
         dhn = nx.Graph()
         for g in self.generator_nodes:
             dhn.add_node(g, **rou.nodes[g])
@@ -519,28 +534,28 @@ class ThermalNetworkBuilder:
         while unprocessed:
             best_path, best_len = None, math.inf
 
+            # Greedy pass: cheapest admissible connection
             for r in unprocessed:
                 added_len, path_r = nx.multi_source_dijkstra(
                     rou, sources=set(dhn.nodes), target=r, weight=tb)
                 if added_len >= best_len:
                     continue
-
                 dhn_hat = dhn.copy()
                 self._add_path(dhn_hat, path_r)
-
+                # Check constraint from nearest generator
                 l_gr = math.inf
                 for g in self.generator_nodes:
                     if g in dhn_hat:
                         try:
-                            d = nx.shortest_path_length(dhn_hat, g, r, weight=weight)
-                            if d < l_gr:
-                                l_gr = d
+                            d = nx.shortest_path_length(
+                                dhn_hat, g, r, weight=weight)
+                            l_gr = min(l_gr, d)
                         except nx.NetworkXNoPath:
                             continue
-
                 if l_gr <= l_max:
                     best_path, best_len = path_r, added_len
 
+            # Fallback: weighted search reusing existing pipes
             if best_path is None:
                 eps = delta_eps
                 while True:
@@ -550,26 +565,23 @@ class ThermalNetworkBuilder:
 
                     w_len, w_paths = nx.multi_source_dijkstra(
                         rou, sources=set(self.generator_nodes), weight=w)
-
-                    reachable = {n: w_len[n] for n in unprocessed if n in w_len}
+                    reachable = {n: w_len[n] for n in unprocessed
+                                 if n in w_len}
                     if not reachable:
                         break
-
-                    r = min(reachable, key=reachable.get)
-                    path_r = w_paths[r]
+                    r       = min(reachable, key=reachable.get)
+                    path_r  = w_paths[r]
                     dhn_hat = dhn.copy()
                     self._add_path(dhn_hat, path_r)
-
                     l_gr = math.inf
                     for g in self.generator_nodes:
                         if g in dhn_hat:
                             try:
-                                d = nx.shortest_path_length(dhn_hat, g, r, weight=weight)
-                                if d < l_gr:
-                                    l_gr = d
+                                d = nx.shortest_path_length(
+                                    dhn_hat, g, r, weight=weight)
+                                l_gr = min(l_gr, d)
                             except nx.NetworkXNoPath:
                                 continue
-
                     if l_gr <= l_max or eps >= 1.0:
                         best_path = path_r
                         break
@@ -580,8 +592,62 @@ class ThermalNetworkBuilder:
                 unprocessed.remove(best_path[-1])
             else:
                 r = unprocessed.pop()
-                _, path_r = nx.multi_source_dijkstra(rou, sources=set(dhn.nodes), target=r, weight=tb)
+                _, path_r = nx.multi_source_dijkstra(
+                    rou, sources=set(dhn.nodes), target=r, weight=tb)
                 self._add_path(dhn, path_r)
+
+        self.dhn = dhn
+        return dhn
+
+    # ------------------------------------------------------------------
+    def add_mesh_layers(self, max_extra_edges=5):
+        """
+        Loop augmentation — adds loop-closing edges to the Steiner tree.
+
+        After constrained_steiner_tree() produces a radial base (L=0),
+        adds up to max_extra_edges unused routing-graph edges whose both
+        endpoints are already in the network, sorted by length (shortest
+        first). Each added edge increases L by exactly 1.
+
+        Physically motivated by hydraulic redundancy:
+          3G — security of supply from single source
+          4G — balancing between distributed sources
+
+        Parameters
+        ----------
+        max_extra_edges : int — number of loop-closing edges to add
+
+        Returns
+        -------
+        nx.Graph — augmented DHN (also stored in self.dhn)
+        """
+        if self.dhn is None:
+            raise RuntimeError(
+                "Call constrained_steiner_tree() first.")
+
+        dhn = nx.Graph(self.dhn)
+
+        # Candidate edges: both endpoints in dhn, not yet in dhn
+        candidates = []
+        for u, v, data in self.rou.edges(data=True):
+            if dhn.has_edge(u, v):
+                continue
+            if u in dhn.nodes() and v in dhn.nodes():
+                candidates.append((data.get("length", 1.0), u, v, data))
+        candidates.sort(key=lambda x: x[0])
+
+        added = 0
+        for length, u, v, data in candidates:
+            if added >= max_extra_edges:
+                break
+            dhn.add_edge(u, v, **data)
+            added += 1
+
+        N = dhn.number_of_nodes()
+        E = dhn.number_of_edges()
+        L = E - N + 1
+        print(f"  add_mesh_layers: +{added} edges → "
+              f"N={N}, E={E}, L={L}, α={L/max(2*N-5,1):.4f}")
 
         self.dhn = dhn
         return dhn
@@ -600,64 +666,88 @@ class ThermalNetworkBuilder:
 
     # ------------------------------------------------------------------
     def metrics(self, dhn=None):
-        """
-        Computes topological metrics for the DHN.
-        """
+        """Topological metrics. Supports multi-source configurations."""
         dhn = dhn if dhn is not None else self.dhn
         if dhn is None:
             raise RuntimeError("No DHN topology available.")
 
-        l_tot = sum(d.get("length", 0.0) for _, _, d in dhn.edges(data=True))
+        l_tot = sum(d.get("length", 0.0)
+                    for _, _, d in dhn.edges(data=True))
 
         l_cc = 0.0
         for n in self.building_nodes:
             if n not in dhn:
                 continue
-            min_dist_to_any_g = math.inf
+            min_d = math.inf
             for g in self.generator_nodes:
                 if g in dhn:
                     try:
                         d = nx.shortest_path_length(dhn, g, n, weight="length")
-                        if d < min_dist_to_any_g:
-                            min_dist_to_any_g = d
+                        min_d = min(min_d, d)
                     except nx.NetworkXNoPath:
                         continue
-            if min_dist_to_any_g != math.inf:
-                l_cc = max(l_cc, min_dist_to_any_g)
+            if min_d != math.inf:
+                l_cc = max(l_cc, min_d)
 
+        N = dhn.number_of_nodes()
+        E = dhn.number_of_edges()
+        L = E - N + 1
         return {
-            "L_tot_m": round(l_tot, 2),
-            "L_cc_m" : round(l_cc, 2),
-            "N_nodes": dhn.number_of_nodes(),
-            "N_edges": dhn.number_of_edges(),
+            "L_tot_m"  : round(l_tot, 2),
+            "L_cc_m"   : round(l_cc,  2),
+            "N_nodes"  : N,
+            "N_edges"  : E,
+            "L_loops"  : L,
+            "alpha"    : round(L / max(2*N-5, 1), 4),
+            "is_meshed": not nx.is_tree(dhn),
+            "connected": nx.is_connected(dhn),
         }
 
     # ------------------------------------------------------------------
     def plot(self, dhn=None, ax=None, show=True,
              with_district=True, title="DHN_TG_3G_M_M_BASE"):
+
         dhn = dhn if dhn is not None else self.dhn
+
         if dhn is None:
             raise RuntimeError("No DHN topology to plot.")
+
         if ax is None:
+
             fig, ax = plt.subplots(figsize=(14,9))
+
         if with_district:
             self.district.plot_district(ax=ax, show=False)
+
         pos = nx.get_node_attributes(self.rou, "pos")
+
+        # edges
         nx.draw_networkx_edges(dhn, pos, ax=ax,
                                edge_color="black", width=1.0, alpha=1.0)
+
+        # substations
         sub_nodes = [n for n in dhn.nodes if n in self.building_nodes]
+
         nx.draw_networkx_nodes(dhn, pos, nodelist=sub_nodes, ax=ax,
                                node_color="#CCCCFF", node_size=22,
                                edgecolors="blue", linewidths=1.2)
+
+        # source
         nx.draw_networkx_nodes(dhn, pos, nodelist=self.generator_nodes, ax=ax,
                                node_color="blue", node_size=140,
                                edgecolors="blue", linewidths=1.2)
+
+        # internal junctions
         junction_nodes = [n for n in dhn.nodes
                           if n not in self.building_nodes
                           and n not in self.generator_nodes]
+
         nx.draw_networkx_nodes(dhn, pos, nodelist=junction_nodes, ax=ax,
                                node_color="black", node_size=22, linewidths=0)
+
         ax.set_title(title, fontweight="bold", fontsize=12)
+
         if show:
             plt.tight_layout(); plt.show()
+
         return ax

@@ -83,7 +83,7 @@ BLOCK_VAR      = 0.25
 PERTURBATION   = 7
 
 # Network
-BETA           = 1.00
+BETA           = 1.25
 N_PROSUMER_SRC = 5          # 5% of N_sub
 
 # 5GDHC operating parameters
@@ -188,6 +188,7 @@ print(f"  Backup source (bottom-left): {backup_pos}")
 tnb = ThermalNetworkBuilder(street_graph, district, backup_pos)
 tnb.build_routing_graph()
 dhn = tnb.constrained_steiner_tree(beta=BETA)
+dhn = tnb.add_mesh_layers(max_extra_edges=5)
 
 m = tnb.metrics(dhn)
 print(f"\nTopological metrics:")
@@ -465,9 +466,6 @@ prosumer_handle = mlines.Line2D([], [], color='none',
                                 markeredgewidth=2.0,
                                 label="Prosumers")
 
-handles.append(prosumer_handle)
-ax.legend(handles=handles, loc="lower right",
-          fontsize=8, framealpha=0.95)
 
 plot_path = os.path.join(OUT_DIR, "topology.png")
 plt.savefig(plot_path, dpi=300, bbox_inches='tight')
