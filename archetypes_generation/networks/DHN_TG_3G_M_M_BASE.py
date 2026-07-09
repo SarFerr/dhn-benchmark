@@ -5,11 +5,11 @@
 # Methodology II — Algorithmic generation
 #   Step 1: Synthetic urban district (DistrictGenerator)
 #   Step 2: Street graph (StreetGraphBuilder)
-#   Step 3: Constrained Steiner tree beta=1.25 (ThermalNetworkBuilder)
+#   Step 3: Constrained Steiner tree beta=1.00 (ThermalNetworkBuilder)
 #
 # # Operating conditions (3GDH):
-#   Control    : CF-VT (constant flow, variable temperature)
-#   T_supply   : 80°C nominal (variable in operation)
+#   Control    : VF-CT (variable flow, constant temperature)
+#   T_supply   : 80°C (temperature set-point)
 #   delta_T    : 30 K at substations
 #   p_ref      : 10 bar (relative, at source)
 #   N_sources  : 1 (CHP plant, peripheral position)
@@ -70,14 +70,14 @@ PERTURBATION    = 7           # m
 # Network
 BETA            = 1.00        # constrained Steiner flexibility factor
 
-# 3GDH operating parameters (CF-VT)
+# 3GDH operating parameters (VT-CT)
 gp          = GEN_OPERATING["3G"]
 RHO         = gp["rho"]
 CP          = gp["cp"]
 DELTA_T     = gp["delta_T_nom"]    # 30 K
 V_MAX       = gp["v_max"]          # 2.5 m/s
 T_SUPPLY    = gp["T_supply_nom"]   # 80°C
-P_REF_BAR   = gp["P_nom_bar"]      # bar (reference pressure at source)
+P_REF_BAR   = gp["P_nom_bar"]      # bar
 
 Q_PEAK_W    = Q_PEAK_W             # W per substation
 HLF         = 1.10                 # heat loss factor
@@ -87,7 +87,7 @@ def unpack_pipe(vals):
     return vals[0], vals[1], vals[2], vals[3], vals[4]
 
 print("="*60)
-print("DHN_TG_3G_M_M_BASE — 3GDH | Meshed | Medium | CF-VT")
+print("DHN_TG_3G_M_M_BASE — 3GDH | Meshed | Medium | VF-CT")
 print("="*60)
 
 # ---------------------------------------------------------------------------
@@ -107,10 +107,6 @@ district = DistrictGenerator(
 N_SUB = len(district.buildings)
 print(f"  Blocks      : {COLS}×{ROWS} = {COLS*ROWS}")
 print(f"  Substations : {N_SUB}")
-
-# CF-VT nominal mass flow
-M_FLOW_NOM = round(N_SUB * Q_PEAK_W * HLF / (CP * DELTA_T), 3)
-print(f"  m_flow_nom  : {M_FLOW_NOM} kg/s  (CF-VT peak)")
 
 # ---------------------------------------------------------------------------
 # SECTION 3 — STREET GRAPH
@@ -280,7 +276,6 @@ L_tot = sum(d["length_m"] for d in PIPE_SIZING.values())
 print(f"\nPipes: {len(PIPE_SIZING)} sized")
 print(f"  L_tot  = {L_tot/1000:.2f} km")
 print(f"  Q_tot  = {N_SUB*Q_PEAK_W/1e6:.2f} MW")
-print(f"  m_nom  = {M_FLOW_NOM} kg/s")
 
 # ---------------------------------------------------------------------------
 # SECTION 7 — CSV EXPORT
@@ -289,26 +284,25 @@ print(f"\nExporting to: {OUT_DIR}")
 
 with open(os.path.join(OUT_DIR,"nodes.csv"),"w",newline="") as f:
     w = csv.writer(f)
-    w.writerow(["node_id","node_type","x_m","y_m",
-                "Q_peak_W","m_flow_nom_kg_s",
-                "T_supply_nom_degC","delta_T_nom_K","p_ref_bar"])
+    w.writerow([
+        "node_id", "node_type", "x_m", "y_m",
+        "Q_peak_W", "p_pump_set_bar",
+        "T_supply_set_degC", "delta_T_nom_K",
+    ])
     for nid, ntype, x, y in node_rows:
         if ntype == "source":
             w.writerow([nid,ntype,x,y,
                         "",            # Q_peak — not applicable
-                        M_FLOW_NOM,    # CF-VT: fixed mass flow
-                        T_SUPPLY,      # nominal supply temperature
-                        "",
-                        P_REF_BAR])
+                        P_REF_BAR,
+                        T_SUPPLY])
         elif ntype == "substation":
             w.writerow([nid,ntype,x,y,
                         "demand_profile.csv",
-                        "",            # free — computed by solver
                         "",
-                        DELTA_T,
-                        ""])
+                        "",
+                        DELTA_T])
         else:
-            w.writerow([nid,ntype,x,y,"","","","",""])
+            w.writerow([nid,ntype,x,y,"","","",""])
 
 print(f"  nodes.csv  → {len(node_rows)} rows")
 
