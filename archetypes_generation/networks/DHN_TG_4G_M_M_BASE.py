@@ -386,7 +386,7 @@ with open(os.path.join(OUT_DIR, "nodes.csv"), "w", newline="") as f:
     w = csv.writer(f)
     w.writerow(["node_id", "node_type", "x_m", "y_m",
                 "Q_peak_W", "m_flow_set_kg_s",
-                "T_supply_set_degC", "delta_T_nom_K", "p_ref_bar"])
+                "T_supply_set_degC", "delta_T_nom_K", "p_pump_set_bar"])
     for nid, ntype, x, y in node_rows:
         if ntype == "source":
             sp = SOURCE_PARAMS[nid]

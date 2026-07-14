@@ -1,4 +1,4 @@
-node_id,node_type,x_m,y_m,Q_peak_W,m_flow_set_kg_s,T_supply_set_degC,delta_T_nom_K,p_ref_bar
+node_id,node_type,x_m,y_m,Q_peak_W,m_flow_set_kg_s,T_supply_set_degC,delta_T_nom_K,p_pump_set_bar
 src0,source,48.08,40.72,,,60.0,,8.0
 src1,source,928.94,411.94,,138.125,55.0,,
 jun0,junction,48.08,7.5,,,,,
