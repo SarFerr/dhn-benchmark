@@ -3,23 +3,40 @@
 # Benchmark archetype: Technology Assessment, 4GDH, Meshed, Medium
 #
 # Methodology II — Algorithmic generation
-#   Step 1: Synthetic urban district — SAME district as TG-3 (seed=42)
+#   Step 1: Synthetic urban district
 #   Step 2: Street graph
 #   Step 3: Constrained Steiner tree beta=1.00
 #
-# Operating conditions (4GDH, VF-VT):
-#   Control    : VF-VT (variable flow, variable temperature)
-#   T_supply   : 50–70°C (climatically adjusted setpoint)
-#   delta_T    : 20 K at substations
-#   p_ref      : 6 bar (reference pressure at sources)
-#   N_sources  : 3 (distributed renewable/waste heat)
-#   Q_peak_sub : 175 kW/substation (uniform, base scenario)
+# Operating conditions (4GDH, mixed dispatch):
+#   Control    : VF-VT at network level (mass flow and supply temperature
+#                are both free at the network scale, computed by the
+#                thermo-hydraulic solver from the hydraulic/energy balance),
+#                but the TWO SOURCES have different, complementary roles:
 #
-# VF-VT: both mass flow and supply temperature vary in operation.
-#   In the BASE (peak winter) scenario:
-#   T_supply = 70°C (upper envelope), delta_T = 20 K → T_return = 50°C
-#   Mass flow is FREE — computed by the solver from hydraulic balance.
-#   No fixed m_flow_nom is imposed at the source nodes.
+#   src0 — main/backup plant (e.g. CHP or large heat-only boiler)
+#          Hydraulic  : "pressure" reference (the network's hydraulic anchor)
+#          Thermal    : fixed T_out = 70°C (nominal, BASE peak-winter scenario)
+#          Mass flow  : FREE — result of the solver's hydraulic balance
+#                       (covers whatever src1 does not supply)
+#
+#   src1 — secondary plant, constant-flow constant-temperature
+#          (representative of a waste-heat recovery unit or a biomass
+#          plant operated at fixed nominal duty — CF-CT behaviour)
+#          Hydraulic  : "mass_flow" imposed, FIXED (nominal design value,
+#                       sized on the peak demand of its own territory —
+#                       see Section 6bis)
+#          Thermal    : fixed T_out = 55°C (slightly lower than src0, to
+#                       represent the lower-grade nature of recovered/
+#                       biomass heat vs. the primary plant)
+#          Extracted power: NOT imposed — it is a solver OUTPUT, resulting
+#                       from the fixed flow, fixed T_out and the actual
+#                       return temperature seen by src1 at each operating
+#                       point.
+#
+#   delta_T    : 20 K at substations (design)
+#   p_ref      : 8 bar (reference pressure at src0)
+#   N_sources  : 2 (1 main + 1 secondary constant-flow/constant-temperature)
+#   Q_peak_sub : 175 kW/substation (uniform, base scenario)
 #
 # Outputs:
 #   nodes.csv, pipes.csv, topology.png
@@ -77,14 +94,15 @@ PERTURBATION = 7
 # Network
 BETA = 1.00  # constrained Steiner flexibility factor
 
-# 4GDH operating parameters (VF-VT, peak winter BASE scenario)
+# 4GDH operating parameters
 gp = GEN_OPERATING["4G"]
 RHO = gp["rho"]
 CP = gp["cp"]
 DELTA_T = gp["delta_T_nom"]  # 20 K
 V_MAX = gp["v_max"]
-T_SUPPLY = gp["T_supply_nom"]  # 70°C (upper envelope, peak winter)
-P_REF_BAR = gp["P_nom_bar"]  # 6 bar
+T_SUPPLY_SRC0 = gp["T_supply_nom"]  # 70°C — main plant (BASE, peak winter)
+T_SUPPLY_SRC1 = 55.0                # °C — secondary plant (waste heat / biomass, CF-CT)
+P_REF_BAR = gp["P_nom_bar"]  # 6 bar, reference pressure at src0
 
 Q_PEAK_W = Q_PEAK_W  # W per substation
 HLF = 1.10  # heat loss factor
@@ -96,7 +114,7 @@ def unpack_pipe(vals):
 
 
 print("=" * 60)
-print("DHN_TG_4G_M_M_BASE — 4GDH | Meshed | Medium | VF-VT")
+print("DHN_TG_4G_M_M_BASE — 4GDH | Meshed | Medium | src0 free, src1 CF-CT")
 print("=" * 60)
 
 # ---------------------------------------------------------------------------
@@ -116,7 +134,6 @@ district = DistrictGenerator(
 N_SUB = len(district.buildings)
 print(f"  Blocks      : {COLS}×{ROWS} = {COLS * ROWS}")
 print(f"  Substations : {N_SUB}")
-print(f"  VF-VT: no fixed m_flow — solver computes from hydraulic balance")
 
 # ---------------------------------------------------------------------------
 # SECTION 3 — STREET GRAPH
@@ -129,20 +146,19 @@ print(f"  Nodes: {street_graph.number_of_nodes()}, "
 # ---------------------------------------------------------------------------
 # SECTION 4 — NETWORK TOPOLOGY (constrained Steiner)
 # ---------------------------------------------------------------------------
-print(f"\nStep 3 — Constrained Steiner tree (β={BETA}, 3 sources)...")
+print(f"\nStep 3 — Constrained Steiner tree (β={BETA}, 2 sources)...")
 
-# src0 — bottom-left peripheral (col=0, row=0)
+# src0 — bottom-left peripheral (col=0, row=0) — main/backup plant
 src0_block = district.blocks[0 * district.rows + 0]
 gen_pos0   = (src0_block["x"] + src0_block["width"]  / 5,
               src0_block["y"] + src0_block["height"] / 5)
 
-# src1 — right-centre (col=5, row=2)
+# src1 — right-centre (col=5, row=2) — secondary CF-CT plant
 src1_col   = int(COLS * 0.75)
 src1_row   = ROWS // 2
 src1_block = district.blocks[src1_col * district.rows + src1_row]
 gen_pos1   = (src1_block["x"] + src1_block["width"]  * 2/3,
               src1_block["y"] + src1_block["height"] * 2/3)
-
 
 print(f"  src0 position: {gen_pos0}")
 print(f"  src1 position: {gen_pos1}")
@@ -193,7 +209,7 @@ for n in dhn.nodes():
     node_rows.append((nid, ntype, round(pos[0], 2), round(pos[1], 2)))
 
 print(f"\nNodes: {len(node_rows)} "
-      f"(3 sources + {idx_j} junctions + {N_SUB} substations)")
+      f"(2 sources + {idx_j} junctions + {N_SUB} substations)")
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +242,9 @@ G_dir = nx.DiGraph()
 for node in dhn.nodes():
     G_dir.add_node(node)
 
+# Territory assignment: every node is attributed to its network-nearest
+# source. This partition drives both pipe orientation (below) AND the
+# nominal sizing of src1 (Section 6bis).
 closest_gen = {}
 for n in dhn.nodes():
     min_d = math.inf
@@ -328,23 +347,55 @@ print(f"  L_tot  = {L_tot / 1000:.2f} km")
 print(f"  Q_tot  = {N_SUB * Q_PEAK_W / 1e6:.2f} MW")
 
 # ---------------------------------------------------------------------------
+# SECTION 6bis — SECONDARY SOURCE (src1) NOMINAL SIZING (CF-CT)
+# ---------------------------------------------------------------------------
+# src1 is modelled as a constant-flow, constant-temperature plant (waste
+# heat / biomass). Its nominal mass flow is sized on the peak demand of
+# its own territory (the substations for which src1 is the network-nearest
+# source), using the same design ΔT and heat-loss-factor convention already
+# used for the CF-VT sizing. This value is EXPORTED as a fixed
+# design datum; it is NOT meant to vary with the demand profile in
+# operation — the extracted power at src1 is a solver output, not an input.
+src0_gnode, src1_gnode = tnb.generator_nodes[0], tnb.generator_nodes[1]
+
+N_SUB_SRC1 = sum(1 for n in sub_set if closest_gen.get(n) == src1_gnode)
+N_SUB_SRC0 = N_SUB - N_SUB_SRC1
+
+M_FLOW_NOM_SRC1 = round(N_SUB_SRC1 * Q_PEAK_W * HLF / (CP * DELTA_T), 3)
+
+print(f"\nSecondary source sizing (src1, CF-CT):")
+print(f"  Territory   : {N_SUB_SRC1} / {N_SUB} substations "
+      f"({100 * N_SUB_SRC1 / N_SUB:.1f}%)")
+print(f"  m_flow_nom  : {M_FLOW_NOM_SRC1} kg/s  (fixed, design value)")
+print(f"  T_supply    : {T_SUPPLY_SRC1} °C  (fixed)")
+print(f"  src0 territory: {N_SUB_SRC0} substations "
+      f"(covers residual load, mass flow free/computed by solver)")
+
+# ---------------------------------------------------------------------------
 # SECTION 7 — CSV EXPORT
 # ---------------------------------------------------------------------------
 print(f"\nExporting to: {OUT_DIR}")
 
+# Per-source parameters, keyed by the same "src{k}" id used in node_rows
+SOURCE_PARAMS = {
+    "src0": {"m_flow_nom": "",               "T_supply": T_SUPPLY_SRC0},
+    "src1": {"m_flow_nom": M_FLOW_NOM_SRC1,  "T_supply": T_SUPPLY_SRC1},
+}
+
 with open(os.path.join(OUT_DIR, "nodes.csv"), "w", newline="") as f:
     w = csv.writer(f)
     w.writerow(["node_id", "node_type", "x_m", "y_m",
-                "Q_peak_W", "m_flow_nom_kg_s",
-                "T_supply_nom_degC", "delta_T_nom_K", "p_ref_bar"])
+                "Q_peak_W", "m_flow_set_kg_s",
+                "T_supply_set_degC", "delta_T_nom_K", "p_ref_bar"])
     for nid, ntype, x, y in node_rows:
         if ntype == "source":
+            sp = SOURCE_PARAMS[nid]
             w.writerow([nid, ntype, x, y,
-                        "",  # Q_peak — not applicable
-                        "",  # VF-VT: no fixed mass flow
-                        T_SUPPLY,  # 70°C nominal upper envelope
+                        "",                  # Q_peak — not applicable
+                        sp["m_flow_nom"],    # "" for src0 (free), fixed for src1
+                        sp["T_supply"],      # 70°C src0, 65°C src1
                         "",
-                        P_REF_BAR])
+                        P_REF_BAR if nid == "src0" else ""])
         elif ntype == "substation":
             w.writerow([nid, ntype, x, y,
                         "demand_profile.csv",
