@@ -22,8 +22,7 @@
 #   src1 — secondary plant, constant-flow constant-temperature
 #          (representative of a waste-heat recovery unit or a biomass
 #          plant operated at fixed nominal duty — CF-CT behaviour)
-#          Hydraulic  : "mass_flow" imposed, FIXED (nominal design value,
-#                       sized on the peak demand of its own territory —
+#          Hydraulic  : variable "mass_flow" (profile —
 #                       see Section 6bis)
 #          Thermal    : fixed T_out = 55°C (slightly lower than src0, to
 #                       represent the lower-grade nature of recovered/
@@ -69,7 +68,10 @@ from archetypes_generation.constants import (
     RHO_PUR, CP_PUR,
     RHO_HDPE, CP_HDPE,
 )
-from archetypes_generation.demand_profile import Q_PEAK_W
+
+from archetypes_generation.demand_profile import (
+    Q_PEAK_W, DT_MIN, N_DAY, N_WEEK, DAYS, WEEKLY_SHAPE, timestep_labels,
+)
 
 sys.path.insert(0, os.path.join(REPO_ROOT, "dhn_benchmark", "networks"))
 from synthetic_district import (
@@ -347,29 +349,83 @@ print(f"  L_tot  = {L_tot / 1000:.2f} km")
 print(f"  Q_tot  = {N_SUB * Q_PEAK_W / 1e6:.2f} MW")
 
 # ---------------------------------------------------------------------------
-# SECTION 6bis — SECONDARY SOURCE (src1) NOMINAL SIZING (CF-CT)
+# SECTION 6bis — SECONDARY SOURCE (src1) SIZING + DISPATCH-COUPLED PROFILE
 # ---------------------------------------------------------------------------
-# src1 is modelled as a constant-flow, constant-temperature plant (waste
-# heat / biomass). Its nominal mass flow is sized on the peak demand of
-# its own territory (the substations for which src1 is the network-nearest
-# source), using the same design ΔT and heat-loss-factor convention already
-# used for the CF-VT sizing. This value is EXPORTED as a fixed
-# design datum; it is NOT meant to vary with the demand profile in
-# operation — the extracted power at src1 is a solver output, not an input.
+# src1 represents an industrial waste heat recovery plant,
+# dispatched according to the "heat-led with curtailment" principle: the flow
+# delivered to the grid is always the MINIMUM between what the plant could
+# produce (based on its operating shift) and what the grid is
+# actually requesting at that moment. Any excess
+# available heat is dissipated downstream (bypass/dump valve) and
+# does not appear as energy fed into the grid — src1 can never, by design,
+# cover the entire grid demand on its own, and src0 always remains
+# the main plant.
 src0_gnode, src1_gnode = tnb.generator_nodes[0], tnb.generator_nodes[1]
 
 N_SUB_SRC1 = sum(1 for n in sub_set if closest_gen.get(n) == src1_gnode)
 N_SUB_SRC0 = N_SUB - N_SUB_SRC1
 
-M_FLOW_NOM_SRC1 = round(N_SUB_SRC1 * Q_PEAK_W * HLF / (CP * DELTA_T), 3)
+M_FLOW_NOM_TOTAL = round(N_SUB * Q_PEAK_W * HLF / (CP * DELTA_T), 3)
 
-print(f"\nSecondary source sizing (src1, CF-CT):")
-print(f"  Territory   : {N_SUB_SRC1} / {N_SUB} substations "
+SRC1_SUPPORT_FRAC = 0.15
+M_FLOW_NOM_SRC1 = round(SRC1_SUPPORT_FRAC * M_FLOW_NOM_TOTAL, 3)
+
+print(f"\nSecondary source sizing (src1, industrial waste heat, dispatch-coupled):")
+print(f"  spatial distribution : {N_SUB_SRC1} / {N_SUB} substation "
       f"({100 * N_SUB_SRC1 / N_SUB:.1f}%)")
-print(f"  m_flow_nom  : {M_FLOW_NOM_SRC1} kg/s  (fixed, design value)")
-print(f"  T_supply    : {T_SUPPLY_SRC1} °C  (fixed)")
-print(f"  src0 territory: {N_SUB_SRC0} substations "
-      f"(covers residual load, mass flow free/computed by solver)")
+print(f"  Mass flow cap for src1    : {SRC1_SUPPORT_FRAC*100:.0f}% of total capacity "
+      f"= {M_FLOW_NOM_SRC1} kg/s")
+print(f"  Total network capacity: {M_FLOW_NOM_TOTAL} kg/s")
+print(f"  T_supply src1       : {T_SUPPLY_SRC1} °C (fixed)")
+
+MDOT_BYPASS_KGS = 1.77 / 3600   # [kg/s]
+
+F_SHIFT_ON  = 1.00
+F_SHIFT_OFF = 0.05
+WEEKEND_DAYS = {"Sat", "Sun"}
+
+def _build_src1_daily_shape():
+    shape = []
+    for t in range(N_DAY):
+        h_frac = t / (60 // DT_MIN)
+        f = F_SHIFT_ON if 6.0 <= h_frac < 22.0 else F_SHIFT_OFF
+        shape.append(round(f, 4))
+    return shape
+
+SRC1_DAILY_SHAPE = _build_src1_daily_shape()
+
+SRC1_WEEKLY_SHAPE_POTENTIAL = []
+for day in DAYS:
+    if day in WEEKEND_DAYS:
+        SRC1_WEEKLY_SHAPE_POTENTIAL += [F_SHIFT_OFF] * N_DAY
+    else:
+        SRC1_WEEKLY_SHAPE_POTENTIAL += SRC1_DAILY_SHAPE
+
+SRC1_WEEKLY_MDOT_POTENTIAL = [round(f * M_FLOW_NOM_SRC1, 4) for f in SRC1_WEEKLY_SHAPE_POTENTIAL]
+
+NETWORK_WEEKLY_MDOT_DEMAND = [round(f * M_FLOW_NOM_TOTAL, 4) for f in WEEKLY_SHAPE]
+
+SRC1_WEEKLY_MDOT = [
+    round(max(min(p, d), MDOT_BYPASS_KGS), 4)
+    for p, d in zip(SRC1_WEEKLY_MDOT_POTENTIAL, NETWORK_WEEKLY_MDOT_DEMAND)
+]
+
+n_curtailed = sum(1 for p, d in zip(SRC1_WEEKLY_MDOT_POTENTIAL, NETWORK_WEEKLY_MDOT_DEMAND) if p > d)
+print(f"  Heat-led operation with curtailment: {n_curtailed} / {N_WEEK} "
+      f"({100*n_curtailed/N_WEEK:.1f}% — available production > netwrok demand)")
+
+SRC1_PROFILE_FILE = "src1_mdot_profile.csv"
+labels = timestep_labels()
+
+with open(os.path.join(OUT_DIR, SRC1_PROFILE_FILE), "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["timestep", "label", "f_normalised", "mdot_kg_s"])
+    for t in range(N_WEEK):
+        f_norm = round(SRC1_WEEKLY_MDOT[t] / M_FLOW_NOM_SRC1, 4) if M_FLOW_NOM_SRC1 > 0 else 0
+        w.writerow([t, labels[t], f_norm, SRC1_WEEKLY_MDOT[t]])
+
+print(f"  {SRC1_PROFILE_FILE} → {N_WEEK} righe "
+      f"(peak {max(SRC1_WEEKLY_MDOT):.3f} kg/s, min {min(SRC1_WEEKLY_MDOT):.4f} kg/s)")
 
 # ---------------------------------------------------------------------------
 # SECTION 7 — CSV EXPORT
@@ -378,8 +434,8 @@ print(f"\nExporting to: {OUT_DIR}")
 
 # Per-source parameters, keyed by the same "src{k}" id used in node_rows
 SOURCE_PARAMS = {
-    "src0": {"m_flow_nom": "",               "T_supply": T_SUPPLY_SRC0},
-    "src1": {"m_flow_nom": M_FLOW_NOM_SRC1,  "T_supply": T_SUPPLY_SRC1},
+    "src0": {"m_flow_nom": "",                 "T_supply": T_SUPPLY_SRC0},
+    "src1": {"m_flow_nom": SRC1_PROFILE_FILE,  "T_supply": T_SUPPLY_SRC1},
 }
 
 with open(os.path.join(OUT_DIR, "nodes.csv"), "w", newline="") as f:

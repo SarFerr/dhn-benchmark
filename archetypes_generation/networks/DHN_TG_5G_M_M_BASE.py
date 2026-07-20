@@ -3,7 +3,7 @@
 # Benchmark archetype: Technology Assessment, 5GDHC, Meshed, Medium
 #
 # Methodology II — Algorithmic generation
-#   Step 1: Synthetic urban district — SAME district as TG-3/TG-4 (seed=42)
+#   Step 1: Synthetic urban district
 #   Step 2: Street graph
 #   Step 3: Constrained Steiner tree beta=1.00 — single backup source
 #
