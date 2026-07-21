@@ -20,21 +20,14 @@
 #                       (covers whatever src1 does not supply)
 #
 #   src1 — secondary plant, constant-flow constant-temperature
-#          (representative of a waste-heat recovery unit or a biomass
-#          plant operated at fixed nominal duty — CF-CT behaviour)
+#          (representative of a waste-heat recovery unit plant)
 #          Hydraulic  : variable "mass_flow" (profile —
 #                       see Section 6bis)
-#          Thermal    : fixed T_out = 55°C (slightly lower than src0, to
-#                       represent the lower-grade nature of recovered/
-#                       biomass heat vs. the primary plant)
-#          Extracted power: NOT imposed — it is a solver OUTPUT, resulting
-#                       from the fixed flow, fixed T_out and the actual
-#                       return temperature seen by src1 at each operating
-#                       point.
+#          Thermal    : fixed T_out = 55°C
 #
 #   delta_T    : 20 K at substations (design)
 #   p_ref      : 8 bar (reference pressure at src0)
-#   N_sources  : 2 (1 main + 1 secondary constant-flow/constant-temperature)
+#   N_sources  : 2 (1 main + 1 secondary - WH)
 #   Q_peak_sub : 175 kW/substation (uniform, base scenario)
 #
 # Outputs:
@@ -70,7 +63,7 @@ from archetypes_generation.constants import (
 )
 
 from archetypes_generation.demand_profile import (
-    Q_PEAK_W, DT_MIN, N_DAY, N_WEEK, DAYS, WEEKLY_SHAPE, timestep_labels,
+    Q_PEAK_W, DT_MIN, N_DAY, N_WEEK, DAYS, WEEKLY_SHAPE, F_STEADY, timestep_labels,
 )
 
 sys.path.insert(0, os.path.join(REPO_ROOT, "dhn_benchmark", "networks"))
@@ -351,37 +344,32 @@ print(f"  Q_tot  = {N_SUB * Q_PEAK_W / 1e6:.2f} MW")
 # ---------------------------------------------------------------------------
 # SECTION 6bis — SECONDARY SOURCE (src1) SIZING + DISPATCH-COUPLED PROFILE
 # ---------------------------------------------------------------------------
-# src1 represents an industrial waste heat recovery plant,
-# dispatched according to the "heat-led with curtailment" principle: the flow
-# delivered to the grid is always the MINIMUM between what the plant could
-# produce (based on its operating shift) and what the grid is
-# actually requesting at that moment. Any excess
-# available heat is dissipated downstream (bypass/dump valve) and
-# does not appear as energy fed into the grid — src1 can never, by design,
-# cover the entire grid demand on its own, and src0 always remains
-# the main plant.
+# The peak flow rate delivered by src1 is equal to 15% of the
+# flow rate to cover the network base load
 src0_gnode, src1_gnode = tnb.generator_nodes[0], tnb.generator_nodes[1]
 
 N_SUB_SRC1 = sum(1 for n in sub_set if closest_gen.get(n) == src1_gnode)
 N_SUB_SRC0 = N_SUB - N_SUB_SRC1
 
-M_FLOW_NOM_TOTAL = round(N_SUB * Q_PEAK_W * HLF / (CP * DELTA_T), 3)
+M_FLOW_NOM_TOTAL = round(N_SUB * Q_PEAK_W / (CP * DELTA_T), 3)
 
+M_FLOW_BASE_LOAD = round(F_STEADY * M_FLOW_NOM_TOTAL, 3)
 SRC1_SUPPORT_FRAC = 0.15
-M_FLOW_NOM_SRC1 = round(SRC1_SUPPORT_FRAC * M_FLOW_NOM_TOTAL, 3)
+M_FLOW_NOM_SRC1 = round(SRC1_SUPPORT_FRAC * M_FLOW_BASE_LOAD, 3)
 
-print(f"\nSecondary source sizing (src1, industrial waste heat, dispatch-coupled):")
-print(f"  spatial distribution : {N_SUB_SRC1} / {N_SUB} substation "
-      f"({100 * N_SUB_SRC1 / N_SUB:.1f}%)")
-print(f"  Mass flow cap for src1    : {SRC1_SUPPORT_FRAC*100:.0f}% of total capacity "
-      f"= {M_FLOW_NOM_SRC1} kg/s")
+print(f"\nSecondary source sizing (src1, industrial waste heat, base-load coupled):")
 print(f"  Total network capacity: {M_FLOW_NOM_TOTAL} kg/s")
-print(f"  T_supply src1       : {T_SUPPLY_SRC1} °C (fixed)")
+print(f"  Network base-load flow: {M_FLOW_BASE_LOAD} kg/s (F_STEADY={F_STEADY})")
+print(f"  Mass flow cap for src1 : {M_FLOW_NOM_SRC1} kg/s "
+      f"({SRC1_SUPPORT_FRAC*100:.0f}% of base-load flow, "
+      f"{100*M_FLOW_NOM_SRC1/M_FLOW_NOM_TOTAL:.1f}% of total network capacity)")
+print(f"  Equivalent thermal power: {M_FLOW_NOM_SRC1 * CP * DELTA_T / 1e6:.2f} MW")
+print(f"  T_supply src1          : {T_SUPPLY_SRC1} °C (fixed)")
 
-MDOT_BYPASS_KGS = 1.77 / 3600   # [kg/s]
+MDOT_BYPASS_KGS = 0.0   # [kg/s]
 
 F_SHIFT_ON  = 1.00
-F_SHIFT_OFF = 0.05
+F_SHIFT_OFF = 0.00
 WEEKEND_DAYS = {"Sat", "Sun"}
 
 def _build_src1_daily_shape():
@@ -412,7 +400,7 @@ SRC1_WEEKLY_MDOT = [
 
 n_curtailed = sum(1 for p, d in zip(SRC1_WEEKLY_MDOT_POTENTIAL, NETWORK_WEEKLY_MDOT_DEMAND) if p > d)
 print(f"  Heat-led operation with curtailment: {n_curtailed} / {N_WEEK} "
-      f"({100*n_curtailed/N_WEEK:.1f}% — available production > netwrok demand)")
+      f"({100*n_curtailed/N_WEEK:.1f}% — available production > network demand)")
 
 SRC1_PROFILE_FILE = "src1_mdot_profile.csv"
 labels = timestep_labels()
@@ -425,7 +413,7 @@ with open(os.path.join(OUT_DIR, SRC1_PROFILE_FILE), "w", newline="") as f:
         w.writerow([t, labels[t], f_norm, SRC1_WEEKLY_MDOT[t]])
 
 print(f"  {SRC1_PROFILE_FILE} → {N_WEEK} righe "
-      f"(peak {max(SRC1_WEEKLY_MDOT):.3f} kg/s, min {min(SRC1_WEEKLY_MDOT):.4f} kg/s)")
+      f"(peak {max(SRC1_WEEKLY_MDOT):.2f} kg/s, min {min(SRC1_WEEKLY_MDOT):.2f} kg/s)")
 
 # ---------------------------------------------------------------------------
 # SECTION 7 — CSV EXPORT
