@@ -376,7 +376,7 @@ def _build_src1_daily_shape():
     shape = []
     for t in range(N_DAY):
         h_frac = t / (60 // DT_MIN)
-        f = F_SHIFT_ON if 6.0 <= h_frac < 22.0 else F_SHIFT_OFF
+        f = F_SHIFT_ON if 7.0 <= h_frac < 20.0 else F_SHIFT_OFF
         shape.append(round(f, 4))
     return shape
 
