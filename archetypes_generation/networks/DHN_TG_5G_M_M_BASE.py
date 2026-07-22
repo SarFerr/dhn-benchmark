@@ -5,33 +5,21 @@
 # Methodology II — Algorithmic generation
 #   Step 1: Synthetic urban district
 #   Step 2: Street graph
-#   Step 3: Constrained Steiner tree beta=1.00 — single backup source
+#   Step 3: Constrained Steiner tree beta=1.00 — single backup source + thermal prosumerhip
 #
-# Operating conditions (Section 5.2.2 — 5GDHC, heating-only BASE scenario):
+# Operating conditions (5GDH):
 #   Network type   : Bidirectional ambient loop
-#   T_loop         : 10–25°C (near-constant shared loop temperature)
+#   T_loop         : 20°C (near-constant shared loop temperature)
 #   delta_T        : 5 K (nominal temperature difference across HP)
-#   p_ref          : 4 bar
+#   p_ref          : 6 bar
 #   N_sources      : 1 backup (central ground-coupled HP / borehole field)
 #   N_prosumer_src : 5 (5% of substations, spatially distributed)
 #                    — substations capable of heat injection into the loop
 #                    — active only when local HP has surplus heat
-#                    — in BASE scenario (heating week): act as consumers
 #   Q_peak_sub     : from demand_profile [W/substation]
 #
-# Node typology:
-#   src            — 1 centralised backup source at footprint centroid.
-#                    Maintains loop T in [10,25°C]. Active for balancing only.
-#   prosumer_source — 5 substations (5%) with reversible HP. Marked in CSV
-#                    as prosumer=True and backup_fallback=True. In the
-#                    BASE (heating week) scenario they act as consumers.
-#                    In non-production mode all nodes are served by backup.
-#   substation     — remaining 95 substations, consumers only.
-#                    backup_fallback=True: always reachable from src by
-#                    construction of the Steiner tree.
-#
 # Outputs:
-#   nodes.csv, pipes.csv, topology.png
+#   nodes.csv, pipes.csv, topology.png, prosumer_production_profile.csv
 
 import os
 import sys
@@ -60,7 +48,10 @@ from archetypes_generation.constants import (
     RHO_PUR, CP_PUR,
     RHO_HDPE, CP_HDPE,
 )
-from archetypes_generation.demand_profile import Q_PEAK_W
+
+from archetypes_generation.demand_profile import (
+    Q_PEAK_W, DT_MIN, N_DAY, N_WEEK, DAYS, WEEKLY_SHAPE, F_STEADY, timestep_labels,
+)
 
 sys.path.insert(0, os.path.join(REPO_ROOT, "dhn_benchmark", "networks"))
 from synthetic_district import (
@@ -92,11 +83,14 @@ RHO        = gp["rho"]
 CP         = gp["cp"]
 DELTA_T    = gp["delta_T_nom"]    # 5 K
 V_MAX      = gp["v_max"]
-T_LOOP_NOM = gp["T_supply_nom"]   # ~17.5°C
-T_LOOP_MIN = 10.0                  # °C
-T_LOOP_MAX = 25.0                  # °C
-P_REF_BAR  = gp["P_nom_bar"]      # 4 bar
+T_SUPPLY   = gp["T_supply_nom"]  # 20°C
+P_REF_BAR  = gp["P_nom_bar"]     # 6 bar
+
 Q_PEAK_W   = Q_PEAK_W
+Q_PROSUMER_FRAC   = 0.30
+Q_PROSUMER_HEAT_W = round(Q_PEAK_W * Q_PROSUMER_FRAC)
+Q_RESIDUAL_W      = Q_PEAK_W - Q_PROSUMER_HEAT_W
+
 HLF        = 1.02
 
 def unpack_pipe(vals):
@@ -355,6 +349,108 @@ print(f"  L_tot  = {L_tot/1000:.2f} km")
 print(f"  Q_tot  = {N_SUB*Q_PEAK_W/1e6:.2f} MW  (heating mode, BASE)")
 
 # ---------------------------------------------------------------------------
+# SECTION 8bis —  PROSUMER PRODUCTION PROFILE (solar thermal + HP)
+#
+# Physical model:
+#   Each prosumer has a solar thermal collector coupled to a reversible HP.
+#   The HP upgrades the collector output to loop injection temperature (20°C).
+#   Production profile = solar irradiance curve × system efficiency.
+#
+# BASE scenario (winter heating week):
+#   - Solar irradiance follows a bell-shaped daily curve
+#   - Peak hour: solar noon (~12:00), shoulder hours: 09:00-15:00
+#   - Winter daily production fraction: F_SOLAR_WINTER = 0.35
+#     (35% of summer peak — consistent with European winter insolation)
+#   - Q_prosumer_heat_peak = Q_PROSUMER_HEAT_W (52.5 kW at peak irradiance)
+#
+# Output: prosumer_production_profile.csv
+#   timestep, label, f_normalised, Q_W
+#   f_normalised: fraction of Q_PROSUMER_HEAT_W [0,1]
+#   Q_heat_W:     heat injected into loop [W] at this timestep
+# ---------------------------------------------------------------------------
+# Solar thermal production parameters
+F_SOLAR_WINTER = 0.35    # winter fraction of peak summer production
+SOLAR_PEAK_H   = 12.0    # solar noon [h]
+SOLAR_SIGMA_H  = 2.5     # Gaussian half-width [h] — active 07:00-17:00
+
+def _solar_fraction(hour_frac):
+    """
+    Gaussian bell curve centred at solar noon.
+    Returns f in [0, 1] — fraction of peak daily irradiance.
+    Active only between sunrise (07:00) and sunset (17:00) in winter.
+    """
+    if hour_frac < 7.0 or hour_frac > 17.0:
+        return 0.0
+    f = math.exp(-0.5 * ((hour_frac - SOLAR_PEAK_H) / SOLAR_SIGMA_H)**2)
+    return round(f, 4)
+
+# Build daily solar shape (fraction of peak)
+SOLAR_DAILY_SHAPE = []
+for t in range(N_DAY):
+    h_frac = t / (60 // DT_MIN)   # hour of day [0, 24)
+    f = _solar_fraction(h_frac)
+    SOLAR_DAILY_SHAPE.append(f)
+
+# Normalise so that daily peak = F_SOLAR_WINTER
+f_daily_max = max(SOLAR_DAILY_SHAPE) if max(SOLAR_DAILY_SHAPE) > 0 else 1.0
+SOLAR_DAILY_NORM = [
+    round(f / f_daily_max * F_SOLAR_WINTER, 4)
+    for f in SOLAR_DAILY_SHAPE
+]
+
+# Weekly profile — same shape every day (weather-driven, not schedule-driven)
+PROSUMER_WEEKLY_F = []
+for day in DAYS:
+    PROSUMER_WEEKLY_F += SOLAR_DAILY_NORM
+
+# Convert to heat injected into loop [W]
+PROSUMER_WEEKLY_Q = [
+    round(f * Q_PROSUMER_HEAT_W, 2)
+    for f in PROSUMER_WEEKLY_F
+]
+
+# Statistics
+Q_mean = sum(PROSUMER_WEEKLY_Q) / N_WEEK
+Q_max  = max(PROSUMER_WEEKLY_Q)
+n_active = sum(1 for q in PROSUMER_WEEKLY_Q if q > 0)
+
+print(f"\nProsumer solar thermal profile (BASE — winter week):")
+print(f"  F_solar_winter   = {F_SOLAR_WINTER} "
+      f"(35% of summer peak)")
+print(f"  Q_prosumer_peak  = {Q_max/1e3:.1f} kW  "
+      f"(at solar noon, clear sky)")
+print(f"  Q_prosumer_mean  = {Q_mean/1e3:.2f} kW  (weekly average)")
+print(f"  Active timesteps : {n_active}/{N_WEEK}  "
+      f"({100*n_active/N_WEEK:.1f}%)")
+print(f"  Weekly energy    : {sum(PROSUMER_WEEKLY_Q)*DT_MIN/60/1e6:.3f} MWh/week per prosumer")
+print(f"  Network total    : "
+      f"{sum(PROSUMER_WEEKLY_Q)*DT_MIN/60*N_PROSUMER_SRC/1e6:.3f} MWh/week "
+      f"({N_PROSUMER_SRC} prosumers)")
+
+# Export prosumer_production_profile.csv
+PROSUMER_PROFILE_FILE = "prosumer_production_profile.csv"
+labels = timestep_labels()
+
+with open(os.path.join(OUT_DIR, PROSUMER_PROFILE_FILE), "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow([
+        "timestep",      # integer index [0, N_WEEK)
+        "label",         # human-readable timestamp (e.g. Mon_00:00)
+        "f_normalised",  # fraction of Q_PROSUMER_HEAT_W [0, 1]
+        "Q_W",           # heat injected into loop per prosumer [W]
+    ])
+    for t in range(N_WEEK):
+        w.writerow([
+            t,
+            labels[t],
+            PROSUMER_WEEKLY_F[t],
+            PROSUMER_WEEKLY_Q[t],
+        ])
+
+print(f"  {PROSUMER_PROFILE_FILE} → {N_WEEK} rows, "
+      f"{len(DAYS)} days × {N_DAY} steps/day")
+
+# ---------------------------------------------------------------------------
 # SECTION 9 — CSV EXPORT
 # ---------------------------------------------------------------------------
 print(f"\nExporting to: {OUT_DIR}")
@@ -363,50 +459,44 @@ with open(os.path.join(OUT_DIR, "nodes.csv"), "w", newline="") as f:
     w = csv.writer(f)
     w.writerow([
         "node_id", "node_type", "x_m", "y_m",
-        "Q_peak_heat_W",
-        "m_flow_nom_kg_s",
-        "T_loop_min_degC", "T_loop_max_degC",
-        "delta_T_nom_K", "p_ref_bar",
+        "Q_peak_heat_W",       # peak heating demand [W]
+        "Q_prosumer_W",        # heat injected by prosumers [W]
+        "T_supply_set_degC",
+        "delta_T_nom_K",
+        "p_ref_bar",
         "prosumer",
-        "backup_fallback",
     ])
     for nid, ntype, x, y in node_rows:
         if ntype == "source":
             # Backup — balancing only, not always active
             w.writerow([nid, ntype, x, y,
-                        "",           # Q_peak_heat — variable
-                        "",           # m_flow free
-                        T_LOOP_MIN,   # 10°C
-                        T_LOOP_MAX,   # 25°C
+                        "",
+                        "",
+                        T_SUPPLY,
                         "",
                         P_REF_BAR,
-                        "False",      # not a prosumer
-                        "False"])     # is the backup itself
+                        "False"])
         elif ntype == "prosumer_source":
-            # Prosumer — heating mode only in BASE scenario
+            # Prosumer
             w.writerow([nid, ntype, x, y,
                         "demand_profile.csv",
-                        "",           # m_flow free
+                        "prosumer_production_profile.csv",
                         "",
+                        DELTA_T,
                         "",
-                        DELTA_T,      # 5 K across HP
-                        "",
-                        "True",       # prosumer node
-                        "True"])      # reachable from backup ✓
+                        "True"])
         elif ntype == "substation":
-            # Standard consumer
+            # Base consumer
             w.writerow([nid, ntype, x, y,
                         "demand_profile.csv",
-                        "",           # m_flow free
                         "",
                         "",
-                        DELTA_T,      # 5 K across HP
+                        DELTA_T,
                         "",
-                        "False",
-                        "True"])      # reachable from backup ✓
+                        "False"])
         else:
             w.writerow([nid, ntype, x, y,
-                        "", "", "", "", "", "", "", ""])
+                        "", "", "", "", "", "",])
 
 print(f"  nodes.csv  → {len(node_rows)} rows")
 

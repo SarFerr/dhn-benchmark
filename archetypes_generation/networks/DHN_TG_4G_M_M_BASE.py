@@ -31,7 +31,7 @@
 #   Q_peak_sub : 175 kW/substation (uniform, base scenario)
 #
 # Outputs:
-#   nodes.csv, pipes.csv, topology.png
+#   nodes.csv, pipes.csv, topology.png, src1_mdot_profile.csv
 
 import os
 import sys
