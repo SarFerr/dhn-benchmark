@@ -236,8 +236,8 @@ for n in dhn.nodes():
     if kind == "substation":
         b_idx = tnb.building_nodes.index(n)
         if b_idx in prosumer_src_set:
-            nid   = f"psrc{prosumer_src_ids.index(b_idx)}"
-            ntype = "prosumer_source"
+            nid   = f"sub{b_idx}"
+            ntype = "prosumer"
             psrc_counter += 1
         else:
             nid   = f"sub{b_idx}"
@@ -476,12 +476,12 @@ with open(os.path.join(OUT_DIR, "nodes.csv"), "w", newline="") as f:
                         "",
                         P_REF_BAR,
                         "False"])
-        elif ntype == "prosumer_source":
+        elif ntype == "prosumer":
             # Prosumer
             w.writerow([nid, ntype, x, y,
                         "demand_profile.csv",
                         "prosumer_production_profile.csv",
-                        "",
+                        T_SUPPLY,
                         DELTA_T,
                         "",
                         "True"])

@@ -6,7 +6,7 @@ jun2,junction,187.92,77.0,,,,,,
 sub13,substation,202.92,77.0,demand_profile.csv,,,5.0,,False
 jun3,junction,187.92,151.08,,,,,,
 jun4,junction,248.67,151.08,,,,,,
-psrc3,prosumer_source,248.67,136.08,demand_profile.csv,prosumer_production_profile.csv,,5.0,,True
+sub14,prosumer,248.67,136.08,demand_profile.csv,prosumer_production_profile.csv,20.0,5.0,,True
 jun5,junction,187.92,237.07,,,,,,
 sub3,substation,172.92,237.07,demand_profile.csv,,,5.0,,False
 jun6,junction,187.92,241.31,,,,,,
@@ -63,7 +63,7 @@ sub20,substation,254.88,445.76,demand_profile.csv,,,5.0,,False
 jun33,junction,187.92,536.19,,,,,,
 sub22,substation,202.92,536.19,demand_profile.csv,,,5.0,,False
 jun34,junction,187.92,540.66,,,,,,
-psrc4,prosumer_source,172.92,540.66,demand_profile.csv,prosumer_production_profile.csv,,5.0,,True
+sub9,prosumer,172.92,540.66,demand_profile.csv,prosumer_production_profile.csv,20.0,5.0,,True
 jun35,junction,101.99,460.76,,,,,,
 sub8,substation,101.99,475.76,demand_profile.csv,,,5.0,,False
 jun36,junction,93.8,460.76,,,,,,
@@ -111,7 +111,7 @@ jun58,junction,621.31,615.01,,,,,,
 jun59,junction,621.31,540.47,,,,,,
 sub51,substation,606.31,540.47,demand_profile.csv,,,5.0,,False
 jun60,junction,621.31,699.96,,,,,,
-psrc0,prosumer_source,606.31,699.96,demand_profile.csv,prosumer_production_profile.csv,,5.0,,True
+sub54,prosumer,606.31,699.96,demand_profile.csv,prosumer_production_profile.csv,20.0,5.0,,True
 jun61,junction,621.31,709.33,,,,,,
 sub71,substation,636.31,709.33,demand_profile.csv,,,5.0,,False
 jun62,junction,711.98,615.01,,,,,,
@@ -184,7 +184,7 @@ jun97,junction,992.54,460.76,,,,,,
 jun98,junction,992.54,536.23,,,,,,
 sub83,substation,977.54,536.23,demand_profile.csv,,,5.0,,False
 jun99,junction,992.54,544.24,,,,,,
-psrc1,prosumer_source,1007.54,544.24,demand_profile.csv,prosumer_production_profile.csv,,5.0,,True
+sub97,prosumer,1007.54,544.24,demand_profile.csv,prosumer_production_profile.csv,20.0,5.0,,True
 jun100,junction,1089.25,460.76,,,,,,
 sub92,substation,1089.25,445.76,demand_profile.csv,,,5.0,,False
 jun101,junction,1091.87,460.76,,,,,,
@@ -195,7 +195,7 @@ sub73,substation,977.54,75.36,demand_profile.csv,,,5.0,,False
 jun104,junction,992.54,72.45,,,,,,
 sub88,substation,1007.54,72.45,demand_profile.csv,,,5.0,,False
 jun105,junction,1095.06,151.08,,,,,,
-psrc2,prosumer_source,1095.06,166.08,demand_profile.csv,prosumer_production_profile.csv,,5.0,,True
+sub90,prosumer,1095.06,166.08,demand_profile.csv,prosumer_production_profile.csv,20.0,5.0,,True
 jun106,junction,1097.57,151.08,,,,,,
 sub87,substation,1097.57,136.08,demand_profile.csv,,,5.0,,False
 jun107,junction,992.54,615.01,,,,,,
