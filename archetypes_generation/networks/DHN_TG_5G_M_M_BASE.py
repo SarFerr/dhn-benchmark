@@ -86,12 +86,12 @@ V_MAX      = gp["v_max"]
 T_SUPPLY   = gp["T_supply_nom"]  # 20°C
 P_REF_BAR  = gp["P_nom_bar"]     # 6 bar
 
-Q_PEAK_W   = Q_PEAK_W
-Q_PROSUMER_FRAC   = 0.30
+Q_PEAK_W          = Q_PEAK_W
+Q_PROSUMER_FRAC   = 0.50
 Q_PROSUMER_HEAT_W = round(Q_PEAK_W * Q_PROSUMER_FRAC)
 Q_RESIDUAL_W      = Q_PEAK_W - Q_PROSUMER_HEAT_W
 
-HLF        = 1.02
+HLF               = 1.02
 
 def unpack_pipe(vals):
     # PIPE_CATALOGUE: (di, do, s, dc, sc)
@@ -359,9 +359,9 @@ print(f"  Q_tot  = {N_SUB*Q_PEAK_W/1e6:.2f} MW  (heating mode, BASE)")
 # BASE scenario (winter heating week):
 #   - Solar irradiance follows a bell-shaped daily curve
 #   - Peak hour: solar noon (~12:00), shoulder hours: 09:00-15:00
-#   - Winter daily production fraction: F_SOLAR_WINTER = 0.35
-#     (35% of summer peak — consistent with European winter insolation)
-#   - Q_prosumer_heat_peak = Q_PROSUMER_HEAT_W (52.5 kW at peak irradiance)
+#   - Winter daily production fraction: F_SOLAR_WINTER = 0.75
+#     (75% of summer peak — consistent with European winter insolation)
+#   - Q_prosumer_heat_peak = Q_PROSUMER_HEAT_W
 #
 # Output: prosumer_production_profile.csv
 #   timestep, label, f_normalised, Q_W
@@ -369,9 +369,9 @@ print(f"  Q_tot  = {N_SUB*Q_PEAK_W/1e6:.2f} MW  (heating mode, BASE)")
 #   Q_heat_W:     heat injected into loop [W] at this timestep
 # ---------------------------------------------------------------------------
 # Solar thermal production parameters
-F_SOLAR_WINTER = 0.35    # winter fraction of peak summer production
+F_SOLAR_WINTER = 0.75    # winter fraction of peak summer production
 SOLAR_PEAK_H   = 12.0    # solar noon [h]
-SOLAR_SIGMA_H  = 2.5     # Gaussian half-width [h] — active 07:00-17:00
+SOLAR_SIGMA_H  = 3.8     # Gaussian half-width [h] — active 07:00-17:00
 
 def _solar_fraction(hour_frac):
     """
@@ -416,7 +416,7 @@ n_active = sum(1 for q in PROSUMER_WEEKLY_Q if q > 0)
 
 print(f"\nProsumer solar thermal profile (BASE — winter week):")
 print(f"  F_solar_winter   = {F_SOLAR_WINTER} "
-      f"(35% of summer peak)")
+      f"(75% of summer peak)")
 print(f"  Q_prosumer_peak  = {Q_max/1e3:.1f} kW  "
       f"(at solar noon, clear sky)")
 print(f"  Q_prosumer_mean  = {Q_mean/1e3:.2f} kW  (weekly average)")
@@ -434,7 +434,7 @@ labels = timestep_labels()
 with open(os.path.join(OUT_DIR, PROSUMER_PROFILE_FILE), "w", newline="") as f:
     w = csv.writer(f)
     w.writerow([
-        "timestep",      # integer index [0, N_WEEK)
+        "timestep",      # integer index [0, N_WEEK]
         "label",         # human-readable timestamp (e.g. Mon_00:00)
         "f_normalised",  # fraction of Q_PROSUMER_HEAT_W [0, 1]
         "Q_W",           # heat injected into loop per prosumer [W]
