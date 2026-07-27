@@ -1,0 +1,22 @@
+# Simulation outputs (large binary files, regenerate locally)
+Results/*.csv
+Results/*.mat
+*.mat
+
+# OpenModelica temp/build artifacts
+*.exe
+*.libs
+*.log
+*_init.xml
+*_records.txt
+*_info.json
+*.bat
+output.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
