@@ -213,21 +213,33 @@ def select_dn(Q_w):
     return dn, di, do, dc, s, sc
 
 
+# --- NUOVO: identifica i 9 tratti dell'anello principale ---
+RING_SET = {
+    ("src", "a"), ("a", "b"), ("b", "c"), ("c", "d"), ("d", "e"),
+    ("e", "f"), ("f", "g"), ("g", "h"), ("h", "src"),
+}
+
 Q_total = n_sub * Q_PEAK_W * HEAT_LOSS_FACTOR
 
 PIPE_SIZING = {}
 
 print(f"\n{'pipe_id':<14} {'from':<8} {'to':<10} "
       f"{'L m':>7} {'Q kW':>7} {'DN':>5} "
-      f"{'d_i mm':>8} {'d_o mm':>8}")
-print("-" * 75)
+      f"{'d_i mm':>8} {'d_o mm':>8}  type")
+print("-" * 85)
 
 for u, v in EDGES:
 
     pid = f"{u}_{v}"
     Lp  = PIPE_L[(u, v)]
 
-    Q = round(Q_PEAK_W * HEAT_LOSS_FACTOR, 1)
+    # --- NUOVO: distinzione tra tratto di anello e ramo alla sottostazione ---
+    if (u, v) in RING_SET:
+        Q = round(Q_total / 2, 1)   # anello: ripartizione simmetrica del carico totale
+        ptype = "ring"
+    else:
+        Q = round(Q_PEAK_W * HEAT_LOSS_FACTOR, 1)   # ramo: singola sottostazione
+        ptype = "branch"
 
     dn, di, do, dc, s, sc = select_dn(Q)
 
@@ -240,15 +252,15 @@ for u, v in EDGES:
         # --- geometry ---
         "length_m"               : Lp,
         "DN_mm"                  : dn,
-        "d_inner_m"              : di,    # PyDHN: diameter
+        "d_inner_m"              : di,
         "d_outer_m"              : do,
-        "wall_m"                 : s,     # PyDHN: internal_pipe_thickness
-        "insulation_thickness_m" : ins_t, # PyDHN: insulation_thickness
-        "casing_thickness_m"     : sc,    # PyDHN: casing_thickness
+        "wall_m"                 : s,
+        "insulation_thickness_m" : ins_t,
+        "casing_thickness_m"     : sc,
         "d_casing_m"             : dc,
         # --- hydraulic ---
         "roughness_mm"            : ROUGHNESS_STEEL,
-        # --- fluid properties at nominal operating temperature ---
+        # --- fluid properties ---
         "fluid_rho_kgm3"         : RHO,
         "fluid_cp_JkgK"          : CP,
         "fluid_mu_Pas"           : gp["mu"],
@@ -256,20 +268,20 @@ for u, v in EDGES:
         # --- steel carrier pipe ---
         "steel_rho_kgm3"         : RHO_STEEL,
         "steel_cp_JkgK"          : CP_STEEL,
-        "steel_lambda_WmK"       : LAMBDA_STEEL,  # PyDHN: k_internal_pipe
+        "steel_lambda_WmK"       : LAMBDA_STEEL,
         # --- PUR foam insulation ---
         "PUR_rho_kgm3"           : RHO_PUR,
         "PUR_cp_JkgK"            : CP_PUR,
-        "PUR_lambda_WmK"         : LAMBDA_PUR,    # PyDHN: k_insulation
+        "PUR_lambda_WmK"         : LAMBDA_PUR,
         # --- HDPE casing ---
         "HDPE_rho_kgm3"          : RHO_HDPE,
         "HDPE_cp_JkgK"           : CP_HDPE,
-        "HDPE_lambda_WmK"        : LAMBDA_HDPE,   # PyDHN: k_casing
+        "HDPE_lambda_WmK"        : LAMBDA_HDPE,
         # --- burial and soil ---
-        "burial_depth_m"         : BURIAL_DEPTH,  # PyDHN: depth
+        "burial_depth_m"         : BURIAL_DEPTH,
         "soil_lambda_WmK"        : LAMBDA_SOIL,
         "T_ground_degC"          : T_GROUND,
-        "h_ext_Wm2K"             : H_EXT,         # PyDHN: h_ext
+        "h_ext_Wm2K"             : H_EXT,
         # --- heat loss coefficients ---
         "U_linear_WmK"           : u_linear(do, dc),
         "U_Wm2K"                 : round(u_linear(do, dc) / (math.pi * do), 4),
@@ -277,9 +289,9 @@ for u, v in EDGES:
 
     print(f"{pid:<14} {u:<8} {v:<10} "
           f"{Lp:>7.1f} {Q/1000:>7.1f} {dn:>5} "
-          f"{di*1000:>8.1f} {do*1000:>8.1f}")
+          f"{di*1000:>8.1f} {do*1000:>8.1f}  {ptype}")
 
-print("-" * 75)
+print("-" * 85)
 L_tot = sum(d["length_m"] for d in PIPE_SIZING.values())
 print(f"  L_tot      = {L_tot/1000:.2f} km   target: 1–5 km ✓")
 print(f"  Q_peak_tot = {n_sub * Q_PEAK_W / 1e6:.2f} MW    target: < 5 MW ✓")
