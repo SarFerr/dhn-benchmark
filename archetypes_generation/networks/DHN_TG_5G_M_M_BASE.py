@@ -359,8 +359,7 @@ print(f"  Q_tot  = {N_SUB*Q_PEAK_W/1e6:.2f} MW  (heating mode, BASE)")
 # BASE scenario (winter heating week):
 #   - Solar irradiance follows a bell-shaped daily curve
 #   - Peak hour: solar noon (~12:00), shoulder hours: 09:00-15:00
-#   - Winter daily production fraction: F_SOLAR_WINTER = 0.50
-#     (50% of summer peak — consistent with European winter insolation)
+#   - Winter daily production fraction: F_SOLAR_WINTER = 1.00
 #   - Q_prosumer_heat_peak = Q_PROSUMER_HEAT_W
 #
 # Output: prosumer_production_profile.csv
@@ -369,7 +368,7 @@ print(f"  Q_tot  = {N_SUB*Q_PEAK_W/1e6:.2f} MW  (heating mode, BASE)")
 #   Q_heat_W:     heat injected into loop [W] at this timestep
 # ---------------------------------------------------------------------------
 # Solar thermal production parameters
-F_SOLAR_WINTER = 0.50    # winter fraction of peak summer production
+F_SOLAR_WINTER = 1.00    # winter fraction of peak summer production
 SOLAR_PEAK_H   = 12.0    # solar noon [h]
 SOLAR_SIGMA_H  = 3.8     # Gaussian half-width [h] — active 07:00-17:00
 
