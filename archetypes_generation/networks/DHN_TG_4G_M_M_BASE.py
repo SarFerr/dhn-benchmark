@@ -23,7 +23,7 @@
 #          (representative of a waste-heat recovery unit plant)
 #          Hydraulic  : variable "mass_flow" (profile —
 #                       see Section 6bis)
-#          Thermal    : fixed T_out = 55°C
+#          Thermal    : fixed T_out = 60°C
 #
 #   delta_T    : 20 K at substations (design)
 #   p_ref      : 8 bar (reference pressure at src0)
@@ -96,7 +96,7 @@ CP = gp["cp"]
 DELTA_T = gp["delta_T_nom"]  # 20 K
 V_MAX = gp["v_max"]
 T_SUPPLY_SRC0 = gp["T_supply_nom"]  # 70°C — main plant (BASE, peak winter)
-T_SUPPLY_SRC1 = 55.0                # °C — secondary plant (waste heat / biomass, CF-CT)
+T_SUPPLY_SRC1 = 60.0                # °C — secondary plant (waste heat / biomass, CF-CT)
 P_REF_BAR = gp["P_nom_bar"]  # 6 bar, reference pressure at src0
 
 Q_PEAK_W = Q_PEAK_W  # W per substation
