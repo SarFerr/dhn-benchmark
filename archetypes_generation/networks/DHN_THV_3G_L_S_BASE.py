@@ -2,7 +2,7 @@
 #
 # Benchmark archetype: Thermo-Hydraulic Validation, 3GDH, Ring, Small
 #
-# Methodology I — Purpose-driven design (paper_v2, Section 6.2)
+# Methodology I — Purpose-driven design
 #   Rule 1: exactly 10 substations
 #   Rule 2: pipe lengths sampled from U[100, 200] m, seed=42
 #   Rule 3: ring topology — single closed main loop, 1 independent hydraulic loop
