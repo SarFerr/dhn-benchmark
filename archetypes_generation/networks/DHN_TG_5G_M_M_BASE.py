@@ -13,7 +13,7 @@
 #   delta_T        : 5 K (nominal temperature difference across HP)
 #   p_ref          : 6 bar
 #   N_sources      : 1 backup (central ground-coupled HP / borehole field)
-#   N_prosumer_src : 5 (5% of substations, spatially distributed)
+#   N_prosumer_src : 20 (20% of substations, spatially distributed)
 #                    — substations capable of heat injection into the loop
 #                    — active only when local HP has surplus heat
 #   Q_peak_sub     : from demand_profile [W/substation]
@@ -75,7 +75,7 @@ PERTURBATION   = 7
 
 # Network
 BETA           = 1.00
-N_PROSUMER_SRC = 5          # 5% of N_sub
+N_PROSUMER_SRC = 20          # 20% of N_sub
 
 # 5GDHC operating parameters
 gp         = GEN_OPERATING["5G"]

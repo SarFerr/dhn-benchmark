@@ -8,9 +8,7 @@
 #   Step 3: Constrained Steiner tree beta=1.00
 #
 # Operating conditions (4GDH, mixed dispatch):
-#   Control    : VF-VT at network level (mass flow and supply temperature
-#                are both free at the network scale, computed by the
-#                thermo-hydraulic solver from the hydraulic/energy balance),
+#   Control    : (variable flow, constant temperature)
 #                but the TWO SOURCES have different, complementary roles:
 #
 #   src0 — main/backup plant (e.g. CHP or large heat-only boiler)
