@@ -1,19 +1,19 @@
-# DHN_THV_3G_R_S_BASE.py
+# 3G_R_S_BASE.py
 #
-# Benchmark archetype: Thermo-Hydraulic Validation, 3GDH, Radial, Small
+# Benchmark archetype: 3GDH, Radial, Small
 #
 # Methodology I — Purpose-driven design
 #   Rule 1: exactly 10 substations
 #   Rule 2: pipe lengths sampled from U[100, 200] m, seed=42
 #   Rule 3: radial tree topology, depth 3, no loops (L=0)
 #
-# Outputs (dhn_benchmark/archetypes/DHN_THV_3G_R_S_BASE/):
+# Outputs (dhn_benchmark/archetypes/3G_R_S_BASE/):
 #   nodes.csv     — node table with boundary conditions (supply + return)
 #   pipes.csv     — pipe table with all modelling parameters
-#   topology.png  — network topology plot (paper-ready, 300 dpi)
+#   topology.png  — network topology plot
 #
 # Usage:
-#   python archetypes_generation/networks/DHN_THV_3G_R_S_BASE.py
+#   python archetypes_generation/networks/3G_R_S_BASE.py
 
 import os
 import sys
@@ -29,7 +29,7 @@ import networkx as nx
 # ---------------------------------------------------------------------------
 THIS_DIR  = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(THIS_DIR, "..", ".."))
-OUT_DIR = os.path.join(THIS_DIR, "..", "archetypes", "DHN_THV_3G_R_S_BASE")
+OUT_DIR = os.path.join(THIS_DIR, "..", "archetypes", "3G_R_S_BASE")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # Add repo root to path so archetypes_generation package is importable
@@ -52,6 +52,8 @@ from archetypes_generation.constants import (
 )
 from archetypes_generation.demand_profile import Q_PEAK_W
 from archetypes_generation.plotting import plot_topology
+from archetypes_generation.pipe_system import select_dn, pipe_record, write_pipes_csv, PipeSizingError
+GEN = "3G"
 
 # ---------------------------------------------------------------------------
 # SECTION 1 — PIPE LENGTHS
@@ -150,9 +152,10 @@ n_jun   = sum(1 for n in NODES if n[1] == "junction")
 n_sub   = sum(1 for n in NODES if n[1] == "substation")
 
 KPIS = {
-    "network_code"     : "DHN_THV_3G_R_S_BASE",
+    "network_code"     : "3G_R_S_BASE",
     "generation"       : "3G",
     "topology"         : "radial",
+    "size"             : "small",
     "n_nodes"          : N,
     "n_edges"          : E,
     "n_loops"          : L,
@@ -187,28 +190,6 @@ P_NOM    = gp["P_nom_bar"]
 HEAT_LOSS_FACTOR = 1.05
 
 
-def u_linear(d_o, d_casing):
-    """Overall linear heat loss coefficient [W/(m·K)] — EN 13941."""
-    R_ins  = math.log(d_casing / d_o)              / (2 * math.pi * LAMBDA_PUR)
-    R_soil = math.log(2 * BURIAL_DEPTH / d_casing) / (2 * math.pi * LAMBDA_SOIL)
-    return round(1.0 / (R_ins + R_soil), 4)
-
-
-def select_dn(Q_w):
-    """Select minimum DN satisfying v <= V_MAX.
-    Returns: dn, d_inner, d_outer, d_casing, wall, casing_wall, mdot, velocity
-    """
-    mdot = Q_w / (CP * DELTA_T)
-    for dn, (di, do, s, dc, sc) in sorted(PIPE_CATALOGUE.items()):
-        A = math.pi * di**2 / 4.0
-        v = mdot / (RHO * A)
-        if v <= V_MAX:
-            return dn, di, do, dc, s, sc, round(mdot, 4), round(v, 3)
-    dn, (di, do, s, dc, sc) = sorted(PIPE_CATALOGUE.items())[-1]
-    A = math.pi * di**2 / 4.0
-    return dn, di, do, dc, s, sc, round(mdot, 4), round(mdot / (RHO * A), 3)
-
-
 G_dir  = nx.DiGraph()
 G_dir.add_edges_from(EDGES)
 Q_node = {n[0]: Q_PEAK_W if n[1] == "substation" else 0.0 for n in NODES}
@@ -230,53 +211,11 @@ for u, v in EDGES:
     pid  = f"{u}_{v}"
     Lp   = PIPE_L[(u, v)]
     Q    = downstream_load(u, v)
-    dn, di, do, dc, s, sc, mdot, vel = select_dn(Q)
-    vol  = round(math.pi / 4 * di**2 * Lp, 6)
-    tau  = round(vol / (mdot / RHO), 1)
+    e = select_dn(GEN, Q)
+    dn, di, do = e['DN'], e['d_i'], e['d_o']
 
-    ins_t = round((dc - do) / 2 - sc, 5)
 
-    PIPE_SIZING[pid] = {
-        # --- identification ---
-        "from_node"              : u,
-        "to_node"                : v,
-        # --- geometry ---
-        "length_m"               : Lp,
-        "DN_mm"                  : dn,
-        "d_inner_m"              : di,    # PyDHN: diameter
-        "d_outer_m"              : do,
-        "wall_m"                 : s,     # PyDHN: internal_pipe_thickness
-        "insulation_thickness_m" : ins_t, # PyDHN: insulation_thickness
-        "casing_thickness_m"     : sc,    # PyDHN: casing_thickness
-        "d_casing_m"             : dc,
-        # --- hydraulic ---
-        "roughness_mm"            : ROUGHNESS_STEEL,
-        # --- fluid properties at nominal operating temperature ---
-        "fluid_rho_kgm3"         : RHO,
-        "fluid_cp_JkgK"          : CP,
-        "fluid_mu_Pas"           : gp["mu"],
-        "fluid_lambda_WmK"       : gp["lambda"],
-        # --- steel carrier pipe ---
-        "steel_rho_kgm3"         : RHO_STEEL,
-        "steel_cp_JkgK"          : CP_STEEL,
-        "steel_lambda_WmK"       : LAMBDA_STEEL,  # PyDHN: k_internal_pipe
-        # --- PUR foam insulation ---
-        "PUR_rho_kgm3"           : RHO_PUR,
-        "PUR_cp_JkgK"            : CP_PUR,
-        "PUR_lambda_WmK"         : LAMBDA_PUR,    # PyDHN: k_insulation
-        # --- HDPE casing ---
-        "HDPE_rho_kgm3"          : RHO_HDPE,
-        "HDPE_cp_JkgK"           : CP_HDPE,
-        "HDPE_lambda_WmK"        : LAMBDA_HDPE,   # PyDHN: k_casing
-        # --- burial and soil ---
-        "burial_depth_m"         : BURIAL_DEPTH,  # PyDHN: depth
-        "soil_lambda_WmK"        : LAMBDA_SOIL,
-        "T_ground_degC"          : T_GROUND,
-        "h_ext_Wm2K"             : H_EXT,         # PyDHN: h_ext
-        # --- heat loss coefficients ---
-        "U_linear_WmK"           : u_linear(do, dc),
-        "U_Wm2K"                 : round(u_linear(do, dc) / (math.pi * do), 4),
-    }
+    PIPE_SIZING[pid] = pipe_record(GEN, e, u, v, Lp)
 
     print(f"{pid:<14} {u:<8} {v:<10} "
           f"{Lp:>7.1f} {Q/1000:>7.1f} {dn:>5} "
@@ -314,12 +253,7 @@ with open(os.path.join(OUT_DIR, "nodes.csv"), "w", newline="") as f:
 print(f"  nodes.csv    → {len(NODES)} rows")
 
 # pipes.csv
-with open(os.path.join(OUT_DIR, "pipes.csv"), "w", newline="") as f:
-    fieldnames = ["pipe_id"] + list(next(iter(PIPE_SIZING.values())).keys())
-    w = csv.DictWriter(f, fieldnames=fieldnames)
-    w.writeheader()
-    for pid, d in PIPE_SIZING.items():
-        w.writerow({"pipe_id": pid, **d})
+write_pipes_csv(os.path.join(OUT_DIR, "pipes.csv"), PIPE_SIZING)
 print(f"  pipes.csv    → {len(PIPE_SIZING)} rows, "
       f"{len(next(iter(PIPE_SIZING.values())))+1} columns")
 
@@ -328,7 +262,7 @@ print(f"  pipes.csv    → {len(PIPE_SIZING)} rows, "
 # ---------------------------------------------------------------------------
 fig, ax = plot_topology(
     NODES, EDGES,
-    title="DHN_THV_3G_R_S_BASE",
+    title="3G_R_S_BASE",
     show=True,
 )
 plot_path = os.path.join(OUT_DIR, "topology.png")
