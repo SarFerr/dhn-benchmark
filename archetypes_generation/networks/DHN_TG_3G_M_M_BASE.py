@@ -70,7 +70,7 @@ PERTURBATION    = 7           # m
 # Network
 BETA            = 1.00        # constrained Steiner flexibility factor
 
-# 3GDH operating parameters (VT-CT)
+# 3GDH operating parameters (VF-CT)
 gp          = GEN_OPERATING["3G"]
 RHO         = gp["rho"]
 CP          = gp["cp"]
