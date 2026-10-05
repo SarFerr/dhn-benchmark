@@ -9,7 +9,7 @@
 import csv, os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 
-from constants import (
+from archetypes_generation.constants import (
     RHO_WATER_3G, CP_WATER_3G, MU_WATER_3G, LAMBDA_WATER_3G,
     RHO_WATER_4G, CP_WATER_4G, MU_WATER_4G, LAMBDA_WATER_4G,
     RHO_WATER_5G, CP_WATER_5G, MU_WATER_5G, LAMBDA_WATER_5G,
@@ -18,7 +18,8 @@ from constants import (
     RHO_PUR, CP_PUR, LAMBDA_PUR,
     RHO_HDPE, CP_HDPE, LAMBDA_HDPE,
     LAMBDA_PEX, ROUGHNESS_PEX,
-    PIPE_CATALOGUE, GEN_OPERATING, DN_BY_GEN_LEVEL,
+    PIPE_CATALOGUE, GEN_OPERATING, GEN_PIPE_SYSTEM, DN_TABLE1_REFERENCE, REFERENCE_LOADS_W,
+    RHO_PEX, CP_PEX, PE100_OD_MM, SDR_PE100,
 )
 
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "data", "parameters.csv")
@@ -124,7 +125,9 @@ def main():
     hdr("parameter", "generation", "value", "unit", "description")
     for row in [
         ("lambda",    "4G/5G", LAMBDA_PEX,    "W/(m·K)", "Thermal conductivity"),
-        ("roughness", "4G/5G", ROUGHNESS_PEX, "m",       "Absolute roughness"),
+        ("roughness", "4G/5G", ROUGHNESS_PEX, "mm",      "Absolute roughness"),
+        ("rho",       "4G/5G", RHO_PEX,       "kg/m3",   "Density (typical, to verify)"),
+        ("cp",        "-",   CP_PEX,        "J/(kg·K)","Specific heat (typical, to verify)"),
     ]:
         rows.append(pad(row))
 
@@ -134,11 +137,11 @@ def main():
     section("7. PIPE CATALOGUE — EN 253:2019 series 1 + EN 10220:2002")
     rows.append([
         "DN_mm", "d_inner_m", "d_outer_m", "wall_m",
-        "d_casing_m", "d_inner_mm", "d_outer_mm", "d_casing_mm",
+        "d_casing_m", "casing_wall_m", "d_inner_mm", "d_outer_mm", "d_casing_mm",
     ])
-    for dn, (di, do, s, dc) in sorted(PIPE_CATALOGUE.items()):
+    for dn, (di, do, s_, dc, sc) in sorted(PIPE_CATALOGUE.items()):
         rows.append([
-            dn, di, do, s, dc,
+            dn, di, do, s_, dc, sc,
             round(di*1000, 2), round(do*1000, 2), round(dc*1000, 2),
         ])
 
@@ -166,16 +169,24 @@ def main():
             rows.append(pad([key, gen, val, unit, desc]))
 
     # ------------------------------------------------------------------
-    # 9. DN by generation and grid level
+    # 9. Pipe system by generation + Table 1 DN reference ranges
     # ------------------------------------------------------------------
-    section("9. ELIGIBLE DN BY GENERATION AND GRID LEVEL — Table 1 paper_v2")
-    hdr("generation", "grid_level", "DN_list", "unit", "description")
-    for gen, levels in DN_BY_GEN_LEVEL.items():
-        for level, dn_list in levels.items():
-            dn_str = str(dn_list[0]) if len(dn_list) == 1 \
-                     else " | ".join(str(d) for d in dn_list)
-            rows.append(pad([gen, level, dn_str, "mm",
-                             f"Eligible DN for {gen} {level} pipes"]))
+    section("9. PIPE SYSTEM BY GENERATION — Table 1 paper")
+    hdr("generation", "parameter", "value", "unit", "description")
+    for gen, d in GEN_PIPE_SYSTEM.items():
+        for key, val in d.items():
+            rows.append(pad([gen, key, val, "-", "Pipe system attribute"]))
+    section("9b. PE100 CATALOGUE (SDR 11 up to OD 110 mm, SDR 17 above); DN = outer diameter")
+    hdr("DN_mm", "SDR", "wall_mm", "d_inner_mm", "", "")
+    for od in PE100_OD_MM:
+        sdr = 11 if od <= 110 else 17
+        wall = round(od / sdr, 1)
+        rows.append(pad([od, sdr, wall, round(od - 2 * wall, 1), "", ""]))
+    section("9c. TABLE 1 DN REFERENCE RANGES (reference loads 10 kW / 500 kW / 5 MW)")
+    hdr("generation", "grid_level", "DN_range", "reference_load_kW", "description")
+    for gen, levels in DN_TABLE1_REFERENCE.items():
+        for level, (lo, hi) in levels.items():
+            rows.append(pad([gen, level, f"{lo}-{hi}", REFERENCE_LOADS_W[level] / 1e3, "Documentation / consistency test only"]))
 
     # ------------------------------------------------------------------
     # Write

@@ -88,8 +88,15 @@ PIPE_CATALOGUE = {
     200 : (0.20660, 0.21910, 0.00630, 0.3150, 0.0040),
     250 : (0.26060, 0.27300, 0.00630, 0.4000, 0.0040),
     300 : (0.30970, 0.32390, 0.00710, 0.4500, 0.0040),
+    # --- extension for large mains (TO VERIFY against EN 10220 / EN 253 tables) ---
+    350 : (0.33960, 0.35560, 0.00800, 0.5000, 0.0045),
+    400 : (0.38880, 0.40640, 0.00880, 0.5600, 0.0045),
+    450 : (0.43960, 0.45720, 0.00880, 0.6300, 0.0050),
+    500 : (0.49120, 0.50800, 0.00880, 0.7100, 0.0050),
+    600 : (0.59000, 0.61000, 0.01000, 0.8000, 0.0055),
+    700 : (0.69100, 0.71100, 0.01000, 0.9000, 0.0060),
+    800 : (0.78700, 0.81300, 0.01300, 1.0000, 0.0060),
 }
-
 # ---------------------------------------------------------------------------
 # 8. OPERATIONAL PARAMETERS BY GENERATION
 # ---------------------------------------------------------------------------
@@ -111,10 +118,10 @@ GEN_OPERATING = {
         "T_supply_nom" : 60.0,
         "delta_T_nom"  : 20.0,
         "P_nom_bar"    : 8.0,
-        "control_mode" : "VF-VT",
+        "control_mode" : "VF-CT",
         "v_design"     : 0.8,
         "v_max"        : 2.0,
-        "carrier_mat"  : "steel_or_pex",
+        "carrier_mat"  : "steel",
         "rho"          : RHO_WATER_4G,
         "cp"           : CP_WATER_4G,
         "mu"           : MU_WATER_4G,
@@ -127,7 +134,7 @@ GEN_OPERATING = {
         "control_mode" : "prosumer",
         "v_design"     : 0.6,
         "v_max"        : 1.5,
-        "carrier_mat"  : "hdpe",
+        "carrier_mat"  : "PE100",
         "rho"          : RHO_WATER_5G,
         "cp"           : CP_WATER_5G,
         "mu"           : MU_WATER_5G,
@@ -136,22 +143,31 @@ GEN_OPERATING = {
 }
 
 # ---------------------------------------------------------------------------
-# 9. ELIGIBLE DN BY GENERATION AND GRID LEVEL
+# 9. PIPE SYSTEM BY GENERATION
+#   3G : carbon steel, pre-insulated rigid PUR, HDPE jacket
+#   4G : carbon steel (pre-insulated)  [PEX/PERT admissible, not used in TG-4]
+#   5G : PE100 SDR11 carrier, non-insulated, direct burial (ground = thermal buffer)
 # ---------------------------------------------------------------------------
-DN_BY_GEN_LEVEL = {
-    "3G": {
-        "building"     : [20],
-        "distribution" : [40, 50, 65, 80, 100],
-        "transmission" : [100, 125, 150, 200, 250, 300],
-    },
-    "4G": {
-        "building"     : [20],
-        "distribution" : [50, 65, 80, 100, 125],
-        "transmission" : [125, 150, 200, 250],
-    },
-    "5G": {
-        "building"     : [35],
-        "distribution" : [80, 100, 125, 150, 200],
-        "transmission" : [200, 250, 300],
-    },
+RHO_PEX, CP_PEX = 940.0, 2300.0      # typical PE-X (TO VERIFY with manufacturer data)
+SDR_PE100 = 11
+PE100_OD_MM = [25, 32, 40, 50, 63, 75, 90, 110, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000]
+
+GEN_PIPE_SYSTEM = {
+    "3G": {"carrier": "steel", "catalogue": "steel_en253", "roughness_mm": ROUGHNESS_STEEL,
+           "carrier_rho": RHO_STEEL, "carrier_cp": CP_STEEL, "carrier_lambda": LAMBDA_STEEL,
+           "insulation": "PUR", "casing": "HDPE"},
+    "4G": {"carrier": "steel", "catalogue": "steel_en253", "roughness_mm": ROUGHNESS_STEEL,
+           "carrier_rho": RHO_STEEL, "carrier_cp": CP_STEEL, "carrier_lambda": LAMBDA_STEEL,
+           "insulation": "PUR", "casing": "HDPE"},
+    "5G": {"carrier": "PE100", "catalogue": "pe100_sdr11", "roughness_mm": ROUGHNESS_PEX,
+           "carrier_rho": RHO_HDPE, "carrier_cp": CP_HDPE, "carrier_lambda": LAMBDA_HDPE,
+           "insulation": None, "casing": None},
 }
+
+# they refer to reference loads of 10 kW, 500 kW and 5 MW)
+DN_TABLE1_REFERENCE = {
+    "3G": {"building": (20, 20),  "distribution": (50, 65),   "transmission": (125, 150)},
+    "4G": {"building": (20, 20),  "distribution": (65, 80),   "transmission": (150, 200)},
+    "5G": {"building": (25, 40),  "distribution": (100, 200), "transmission": (250, 500)},
+}
+REFERENCE_LOADS_W = {"building": 10e3, "distribution": 500e3, "transmission": 5e6}
