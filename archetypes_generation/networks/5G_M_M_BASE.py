@@ -5,18 +5,30 @@
 # Methodology II — Algorithmic generation
 #   Step 1: Synthetic urban district
 #   Step 2: Street graph
-#   Step 3: Constrained Steiner tree beta=1.00 — single backup source + thermal prosumerhip
+#   Step 3: Constrained Steiner tree beta=1.00
 #
 # Operating conditions (5GDH):
-#   Network type   : Bidirectional ambient loop
-#   T_loop         : 20°C (near-constant shared loop temperature)
-#   delta_T        : 5 K (nominal temperature difference across HP)
+#   Control        : VF-CT (variable flow, constant temperature) + prosumership
+#
+#   PRIMARY sources — DECENTRALISED, injecting heat into the ambient loop
+#     N_PROSUMER_SRC = 10 substations (10 % of the total), ALL injecting heat.
+#     ONE generation profile, built ad hoc for the benchmark (no claim of
+#     physical realism), the same for every prosumer and repeated identically
+#     over the 7 days like the demand profile. It is a base-load profile: a
+#     heating-day plateau sized so that the 10 prosumers together deliver
+#     BASE_SHARE of the steady-state loop demand (F_STEADY of the peak).
+#     The source technology is deliberately not specified (waste heat,
+#     storage-backed heat pump, ...).
+#   SECONDARY source — ONE CENTRALISED plant at the TG-3 position.
+#    It acts as slack in the simulation:
+#    it covers whatever the prosumers do not supply (mainly the morning peak).
+#
+#   T_supply       : 20°C (temperature set-point)
+#   delta_T        : 5 K at substations
 #   p_ref          : 6 bar
-#   N_sources      : 1 backup (central ground-coupled HP / borehole field)
-#   N_prosumer_src : 20 (20% of substations, spatially distributed)
-#                    — substations capable of heat injection into the loop
-#                    — active only when local HP has surplus heat
-#   Q_peak_sub     : from demand_profile [W/substation]
+#   N_sources      : 1 backup (central)
+#   N_prosumer_src : 10 (10% of substations, spatially distributed)
+#   Q_peak_sub : 175 kW/substation (uniform, base scenario)
 #
 # Outputs:
 #   nodes.csv, pipes.csv, topology.png, prosumer_production_profile.csv
@@ -27,31 +39,33 @@ import csv
 import math
 import importlib
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 import networkx as nx
+
 
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-THIS_DIR  = os.path.dirname(os.path.abspath(__file__))
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(THIS_DIR, "..", ".."))
-OUT_DIR   = os.path.join(THIS_DIR, "..", "archetypes", "DHN_TG_5G_M_M_BASE")
+OUT_DIR = os.path.join(THIS_DIR, "..", "archetypes", "5G_M_M_BASE")
 os.makedirs(OUT_DIR, exist_ok=True)
 sys.path.insert(0, REPO_ROOT)
 
 import archetypes_generation.constants as co
+
 importlib.reload(co)
-from archetypes_generation.constants import (
-    GEN_OPERATING, PIPE_CATALOGUE,
-    LAMBDA_STEEL, LAMBDA_PUR, LAMBDA_HDPE, LAMBDA_SOIL,
-    ROUGHNESS_STEEL, BURIAL_DEPTH, H_EXT, T_GROUND,
-    RHO_STEEL, CP_STEEL,
-    RHO_PUR, CP_PUR,
-    RHO_HDPE, CP_HDPE,
-)
+from archetypes_generation.constants import GEN_OPERATING
 
 from archetypes_generation.demand_profile import (
-    Q_PEAK_W, DT_MIN, N_DAY, N_WEEK, DAYS, WEEKLY_SHAPE, F_STEADY, timestep_labels,
+    Q_PEAK_W, DT_MIN, N_DAY, N_WEEK, WEEKLY_SHAPE, F_STEADY, timestep_labels,
 )
+
+from archetypes_generation.pipe_system import (
+    select_dn, pipe_record, write_pipes_csv, orient_from_sources, PipeSizingError,
+)
+
+GEN = "5G"
 
 sys.path.insert(0, os.path.join(REPO_ROOT, "dhn_benchmark", "networks"))
 from synthetic_district import (
@@ -65,40 +79,43 @@ from synthetic_district import (
 # ---------------------------------------------------------------------------
 
 # District — identical to TG-3/TG-4 for topology comparability
-SEED           = 42
-WIDTH, HEIGHT  = 1200, 800
-ROWS,  COLS    = 5, 7
-STREET_W       = 15
-N_SUB_TARGET   = 100
-BLOCK_VAR      = 0.25
-PERTURBATION   = 7
+SEED = 42
+WIDTH, HEIGHT = 1200, 800
+ROWS, COLS = 5, 7
+STREET_W = 15
+N_SUB_TARGET = 100
+BLOCK_VAR = 0.25
+PERTURBATION = 7
 
 # Network
-BETA           = 1.00
-N_PROSUMER_SRC = 20          # 20% of N_sub
+BETA = 1.00
+
+# --- Decentralised sources (primary): 10 prosumers, all injecting --------------
+N_PROSUMER_SRC = 10  # 10 % of the substations
+BASE_SHARE = 1.00  # share of the steady-state loop demand delivered by the 10 prosumers
+BASE_ON_H = 6.0  # start of the heating day [h]
+BASE_OFF_H = 22.0  # end of the heating day  [h]
+BASE_RAMP_H = 0.75  # smooth ramp up / down [h]
+
+# --- Central source / pipe design -----------------------------------------
+CENTRAL_MARGIN = 0.10  # capacity margin on the weekly peak residual load (informative)
+SIZING_CASE = "daily_envelope"  # "daily_envelope" | "central_only"
 
 # 5GDHC operating parameters
-gp         = GEN_OPERATING["5G"]
-RHO        = gp["rho"]
-CP         = gp["cp"]
-DELTA_T    = gp["delta_T_nom"]    # 5 K
-V_MAX      = gp["v_max"]
-T_SUPPLY   = gp["T_supply_nom"]  # 20°C
-P_REF_BAR  = gp["P_nom_bar"]     # 6 bar
+gp = GEN_OPERATING["5G"]
+RHO = gp["rho"]
+CP = gp["cp"]
+DELTA_T = gp["delta_T_nom"]
+V_MAX = gp["v_max"]
+T_SUPPLY = gp["T_supply_nom"]
+P_REF_BAR = gp["P_nom_bar"]
 
-Q_PEAK_W          = Q_PEAK_W
-Q_PROSUMER_FRAC   = 1.00
-Q_PROSUMER_HEAT_W = round(Q_PEAK_W * Q_PROSUMER_FRAC)
-Q_RESIDUAL_W      = Q_PEAK_W - Q_PROSUMER_HEAT_W
+HLF = 1.02  # heat loss factor on the loop demand
 
-HLF               = 1.02
-
-def unpack_pipe(vals):
-    # PIPE_CATALOGUE: (di, do, s, dc, sc)
-    return vals[0], vals[1], vals[2], vals[3], vals[4]
+assert SIZING_CASE in ("daily_envelope", "central_only")
 
 print("=" * 60)
-print("DHN_TG_5G_M_M_BASE — 5GDHC | Meshed | Medium | Heating BASE")
+print("5G_M_M_BASE — 5GDHC | Meshed | Medium | Heating BASE")
 print("=" * 60)
 
 # ---------------------------------------------------------------------------
@@ -127,59 +144,64 @@ street_graph = StreetGraphBuilder(district).build()
 print(f"  Nodes: {street_graph.number_of_nodes()}, "
       f"Edges: {street_graph.number_of_edges()}")
 
+
 # ---------------------------------------------------------------------------
-# SECTION 4 — PROSUMER SOURCE SELECTION
+# SECTION 4 — SELECTION OF THE DECENTRALISED SOURCE BUILDINGS
 #
-# Select N_PROSUMER_SRC substations as prosumer injection nodes.
-# Strategy: divide the footprint into N_PROSUMER_SRC spatial zones and
-# select the substation nearest to each zone centroid.
-# Zones arranged as N / NE / SE / SW / NW for N=5.
-# Deterministic and independent of the random seed.
+# Deterministic, independent of the random seed: the footprint is divided into
+# zones and the free building nearest to each zone centroid is selected.
+#   N_PROSUMER_SRC zones on a regular grid, spread over the footprint.
 # ---------------------------------------------------------------------------
-print(f"\nSelecting {N_PROSUMER_SRC} prosumer sources (spatially distributed)...")
+def spatial_zone_centroids(n, width, height):
+    """n zone centroids spread evenly over the footprint (grid of cells, row-major)."""
+    cols = max(1, math.ceil(math.sqrt(n * width / height)))
+    rows = math.ceil(n / cols)
+    cells = [((i + 0.5) / cols * width, (j + 0.5) / rows * height)
+             for j in range(rows) for i in range(cols)]
+    step = (len(cells) - 1) / max(n - 1, 1)
+    return [cells[round(k * step)] for k in range(n)]
 
-zone_centroids = [
-    (WIDTH * 0.50, HEIGHT * 0.85),   # North
-    (WIDTH * 0.85, HEIGHT * 0.65),   # NE
-    (WIDTH * 0.85, HEIGHT * 0.20),   # SE
-    (WIDTH * 0.15, HEIGHT * 0.20),   # SW
-    (WIDTH * 0.15, HEIGHT * 0.65),   # NW
-]
 
-prosumer_src_ids = []
-used_ids         = set()
+def pick_buildings(zone_centroids, used_ids):
+    """Nearest free building to each zone centroid (ids appended to used_ids)."""
+    picked = []
+    for zx, zy in zone_centroids:
+        best_dist, best_b = float("inf"), None
+        for b in district.buildings:
+            if b["id"] in used_ids:
+                continue
+            d = math.hypot(b["x"] - zx, b["y"] - zy)
+            if d < best_dist:
+                best_dist, best_b = d, b
+        picked.append(best_b["id"])
+        used_ids.add(best_b["id"])
+    return picked
 
-for zx, zy in zone_centroids:
-    best_dist, best_b = float("inf"), None
-    for b in district.buildings:
-        if b["id"] in used_ids:
-            continue
-        d = math.hypot(b["x"] - zx, b["y"] - zy)
-        if d < best_dist:
-            best_dist, best_b = d, b
-    prosumer_src_ids.append(best_b["id"])
-    used_ids.add(best_b["id"])
-    print(f"  Zone ({zx:.0f},{zy:.0f}) → building {best_b['id']} "
-          f"@ ({best_b['x']:.0f},{best_b['y']:.0f})")
 
+zones = spatial_zone_centroids(N_PROSUMER_SRC, WIDTH, HEIGHT)
+assert len(zones) == N_PROSUMER_SRC
+
+prosumer_src_ids = pick_buildings(zones, set())
 prosumer_src_set = set(prosumer_src_ids)
+assert len(prosumer_src_set) == N_PROSUMER_SRC
+
+print(
+    f"\nSelected {N_PROSUMER_SRC} prosumer sources ({100 * N_PROSUMER_SRC / N_SUB:.0f} % of substations, all injecting)")
 
 # ---------------------------------------------------------------------------
 # SECTION 5 — NETWORK TOPOLOGY
-# Backup source only as generator_pos.
-# Prosumer nodes are substations already in the terminal set —
-# distinguished only in the CSV (not in the Steiner tree construction).
-# Connectivity from backup to all nodes guaranteed by construction.
+# One central source (the only generator of the Steiner construction).
+# Decentralised sources are substations already in the terminal set,
+# distinguished only in the CSV (same graph as TG-3).
 # ---------------------------------------------------------------------------
-print(f"\nStep 3 — Constrained Steiner tree (β={BETA}, backup source only)...")
+print(f"\nStep 3 — Constrained Steiner tree (β={BETA}, one central source)...")
 
-# Backup source
-src_block  = district.blocks[0 * district.rows + 0]
-backup_pos = (src_block["x"] + src_block["width"]  / 5,
-              src_block["y"] + src_block["height"] / 5)
-print(f"  Backup source (bottom-left): {backup_pos}")
+src_block = district.blocks[0 * district.rows + 0]
+central_pos = (src_block["x"] + src_block["width"] / 5,
+               src_block["y"] + src_block["height"] / 5)
+print(f"  Central source: ({central_pos[0]:.1f}, {central_pos[1]:.1f})")
 
-tnb = ThermalNetworkBuilder(street_graph, district, backup_pos)
+tnb = ThermalNetworkBuilder(street_graph, district, central_pos)
 tnb.build_routing_graph()
 dhn = tnb.constrained_steiner_tree(beta=BETA)
 
@@ -189,374 +211,294 @@ for k, v in m.items():
     print(f"  {k:<15} {v}")
 
 # ---------------------------------------------------------------------------
-# SECTION 6 — FALLBACK CONNECTIVITY CHECK
-# Verify all nodes reachable from backup source (N-1 condition).
+# SECTION 6 — CONNECTIVITY CHECK
 # ---------------------------------------------------------------------------
-print("\nFallback connectivity check (backup → all nodes)...")
-backup_gnode = tnb.generator_nodes[0]
-n_reachable  = sum(1 for n in dhn.nodes()
-                   if nx.has_path(dhn, backup_gnode, n))
-assert n_reachable == dhn.number_of_nodes(), \
-    f"[ERROR] Only {n_reachable}/{dhn.number_of_nodes()} nodes reachable!"
-print(f"  All {n_reachable}/{dhn.number_of_nodes()} nodes reachable ✓")
+print("\nConnectivity check (central source → all nodes)...")
+g0 = tnb.generator_nodes[0]
+n_reach = sum(1 for n in dhn.nodes() if nx.has_path(dhn, g0, n))
+assert n_reach == dhn.number_of_nodes(), f"[ERROR] only {n_reach}/{dhn.number_of_nodes()} reachable"
+print(f"  All {n_reach}/{dhn.number_of_nodes()} nodes reachable ✓")
 
-# Verify prosumer sources are reachable
 rou = tnb.rou
-for b in district.buildings:
-    if b["id"] not in prosumer_src_set:
-        continue
-    # Find the corresponding node in DHN
-    proj_node = ("sub", b["id"])
-    if proj_node in dhn.nodes():
-        assert nx.has_path(dhn, backup_gnode, proj_node), \
-            f"[ERROR] Prosumer {b['id']} not reachable from backup!"
-print(f"  All {N_PROSUMER_SRC} prosumer sources backup-reachable ✓")
+bid_of = {n: n[1] for n in tnb.building_nodes}  # node ("sub", id) -> building id
+for n, bid in bid_of.items():
+    if bid in prosumer_src_set:
+        assert n in dhn.nodes(), f"prosumer source {bid} not in the network"
 
 # ---------------------------------------------------------------------------
 # SECTION 7 — NODE EXTRACTION
 # ---------------------------------------------------------------------------
-node_id_map  = {}
-node_rows    = []
-idx_j        = 0
-psrc_counter = 0
+node_id_map = {}
+node_rows = []  # (nid, ntype, x, y, building_id)
+idx_j = 0
 
-# Backup source
-for k, gnode in enumerate(tnb.generator_nodes):
-    pos = rou.nodes[gnode]["pos"]
-    nid = "src"
-    node_id_map[gnode] = nid
-    node_rows.append((nid, "source", round(pos[0],2), round(pos[1],2)))
+pos = rou.nodes[g0]["pos"]
+node_id_map[g0] = "src"
+node_rows.append(("src", "source", round(pos[0], 2), round(pos[1], 2), None))
 
-# All nodes in DHN — distinguish prosumer_source from substation
 for n in dhn.nodes():
     if n in node_id_map:
         continue
     kind = rou.nodes[n].get("kind", "junction")
-    pos  = rou.nodes[n]["pos"]
+    pos = rou.nodes[n]["pos"]
+    bid = None
     if kind == "substation":
-        b_idx = tnb.building_nodes.index(n)
-        if b_idx in prosumer_src_set:
-            nid   = f"sub{b_idx}"
-            ntype = "prosumer"
-            psrc_counter += 1
-        else:
-            nid   = f"sub{b_idx}"
-            ntype = "substation"
+        bid = bid_of[n]
+        nid = f"sub{bid}"
+        ntype = "prosumer" if bid in prosumer_src_set else "substation"
     else:
-        nid   = f"jun{idx_j}"
-        ntype = "junction"
+        nid, ntype = f"jun{idx_j}", "junction"
         idx_j += 1
     node_id_map[n] = nid
-    node_rows.append((nid, ntype, round(pos[0],2), round(pos[1],2)))
+    node_rows.append((nid, ntype, round(pos[0], 2), round(pos[1], 2), bid))
 
-print(f"\nNodes: {len(node_rows)} "
-      f"(1 backup + {psrc_counter} prosumer_src + "
-      f"{idx_j} junctions + {N_SUB - psrc_counter} substations)")
-
-# ---------------------------------------------------------------------------
-# SECTION 8 — PIPE SIZING
-# ---------------------------------------------------------------------------
-def u_linear(d_o, d_casing):
-    R_ins  = math.log(d_casing/d_o)            / (2*math.pi*LAMBDA_PUR)
-    R_soil = math.log(2*BURIAL_DEPTH/d_casing) / (2*math.pi*LAMBDA_SOIL)
-    return round(1.0/(R_ins+R_soil), 4)
-
-def select_dn(Q_w):
-    mdot = Q_w / (CP * DELTA_T)
-    for dn, vals in sorted(PIPE_CATALOGUE.items()):
-        di, do, s, dc, sc = unpack_pipe(vals)
-        A = math.pi * di**2 / 4.0
-        if mdot / (RHO * A) <= V_MAX:
-            return dn, di, do, dc, s, sc, round(mdot, 4)
-    dn, vals = sorted(PIPE_CATALOGUE.items())[-1]
-    di, do, s, dc, sc = unpack_pipe(vals)
-    A = math.pi * di**2 / 4.0
-    return dn, di, do, dc, s, sc, round(mdot, 4)
-
-src_gnode = tnb.generator_nodes[0]
-G_dir     = nx.DiGraph(nx.bfs_tree(dhn, src_gnode))
-sub_set   = set(tnb.building_nodes)
-
-N_dhn = dhn.number_of_nodes()
-E_dhn = dhn.number_of_edges()
-L_dhn = E_dhn - N_dhn + 1
-print(f"\nDHN topology: N={N_dhn}, E={E_dhn}, L={L_dhn}, "
-      f"is_meshed={not nx.is_tree(dhn)}")
-
-def downstream_sub_count(node):
-    try:
-        desc = nx.descendants(G_dir, node) | {node}
-    except Exception:
-        desc = {node}
-    return sum(1 for n in desc if n in sub_set)
-
-PIPE_SIZING = {}
-
-for u, v in dhn.edges():
-    if G_dir.has_edge(u, v):
-        from_n, to_n = u, v
-    elif G_dir.has_edge(v, u):
-        from_n, to_n = v, u
-    else:
-        from_n, to_n = u, v
-
-    n_down = max(downstream_sub_count(to_n), 1)
-    Q      = n_down * Q_PEAK_W * HLF
-    data   = dhn.edges[u, v]
-    Lp     = round(data.get("length", 0.0), 2)
-    dn, di, do, dc, s, sc, mdot = select_dn(Q)
-    ins_t  = round((dc - do) / 2 - sc, 5)
-    UL     = u_linear(do, dc)
-    uid    = node_id_map.get(from_n, str(from_n))
-    vid    = node_id_map.get(to_n,   str(to_n))
-    pid    = f"{uid}_{vid}"
-    PIPE_SIZING[pid] = {
-        "from_node"              : uid,
-        "to_node"                : vid,
-        "length_m"               : Lp,
-        "DN_mm"                  : dn,
-        "d_inner_m"              : di,
-        "d_outer_m"              : do,
-        "wall_m"                 : s,
-        "insulation_thickness_m" : ins_t,
-        "casing_thickness_m"     : sc,
-        "d_casing_m"             : dc,
-        "roughness_mm"           : ROUGHNESS_STEEL,
-        "fluid_rho_kgm3"         : RHO,
-        "fluid_cp_JkgK"          : CP,
-        "fluid_mu_Pas"           : gp["mu"],
-        "fluid_lambda_WmK"       : gp["lambda"],
-        "steel_rho_kgm3"         : RHO_STEEL,
-        "steel_cp_JkgK"          : CP_STEEL,
-        "steel_lambda_WmK"       : LAMBDA_STEEL,
-        "PUR_rho_kgm3"           : RHO_PUR,
-        "PUR_cp_JkgK"            : CP_PUR,
-        "PUR_lambda_WmK"         : LAMBDA_PUR,
-        "HDPE_rho_kgm3"          : RHO_HDPE,
-        "HDPE_cp_JkgK"           : CP_HDPE,
-        "HDPE_lambda_WmK"        : LAMBDA_HDPE,
-        "burial_depth_m"         : BURIAL_DEPTH,
-        "soil_lambda_WmK"        : LAMBDA_SOIL,
-        "T_ground_degC"          : T_GROUND,
-        "h_ext_Wm2K"             : H_EXT,
-        "U_linear_WmK"           : UL,
-        "U_Wm2K"                 : round(UL / (math.pi * do), 4),
-    }
-
-L_tot = sum(d["length_m"] for d in PIPE_SIZING.values())
-print(f"\nPipes: {len(PIPE_SIZING)} sized")
-print(f"  L_tot  = {L_tot/1000:.2f} km")
-print(f"  Q_tot  = {N_SUB*Q_PEAK_W/1e6:.2f} MW  (heating mode, BASE)")
+n_pro = sum(1 for r in node_rows if r[1] == "prosumer")
+n_con = sum(1 for r in node_rows if r[1] == "substation")
+assert n_pro == N_PROSUMER_SRC
+print(f"\nNodes: {len(node_rows)} (1 central source + {n_pro} prosumers + "
+      f"{idx_j} junctions + {n_con} consumers)")
 
 # ---------------------------------------------------------------------------
-# SECTION 8bis —  PROSUMER PRODUCTION PROFILE (solar thermal + HP)
-#
-# Physical model:
-#   Each prosumer has a solar thermal collector coupled to a reversible HP.
-#   The HP upgrades the collector output to loop injection temperature (20°C).
-#   Production profile = solar irradiance curve × system efficiency.
-#
-# BASE scenario (winter heating week):
-#   - Solar irradiance follows a bell-shaped daily curve
-#   - Peak hour: solar noon (~12:00), shoulder hours: 09:00-15:00
-#   - Winter daily production fraction: F_SOLAR_WINTER = 1.00
-#   - Q_prosumer_heat_peak = Q_PROSUMER_HEAT_W
-#
-# Output: prosumer_production_profile.csv
-#   timestep, label, f_normalised, Q_W
-#   f_normalised: fraction of Q_PROSUMER_HEAT_W [0,1]
-#   Q_heat_W:     heat injected into loop [W] at this timestep
+# SECTION 8 — PROSUMER PRODUCTION PROFILE (BASE scenario)
+# ONE profile, built ad hoc to cover the base load of the loop: the same for the
+# N_PROSUMER_SRC prosumers, defined on one day and repeated over the 7 days
+# exactly like the demand profile. No stochastic component.
+#   f(t) = heating-day plateau BASE_ON_H-BASE_OFF_H with smooth ramps, in [0, 1]
+#   Q(t) = f(t) * Q_PROSUMER_HEAT_W
+# Q_PROSUMER_HEAT_W is sized so that the prosumers together deliver BASE_SHARE of
+# the steady-state loop demand (F_STEADY of the coincident peak).
 # ---------------------------------------------------------------------------
-# Solar thermal production parameters
-F_SOLAR_WINTER = 1.00    # winter fraction of peak summer production
-SOLAR_PEAK_H   = 12.0    # solar noon [h]
-SOLAR_SIGMA_H  = 3.8     # Gaussian half-width [h] — active 07:00-17:00
+labels = timestep_labels()
+dt_h = DT_MIN / 60.0
+STEPS_H = 60 // DT_MIN
+N_DAYS = N_WEEK // N_DAY
+assert N_DAYS * N_DAY == N_WEEK
 
-def _solar_fraction(hour_frac):
-    """
-    Gaussian bell curve centred at solar noon.
-    Returns f in [0, 1] — fraction of peak daily irradiance.
-    Active only between sunrise (07:00) and sunset (17:00) in winter.
-    """
-    if hour_frac < 7.0 or hour_frac > 17.0:
-        return 0.0
-    f = math.exp(-0.5 * ((hour_frac - SOLAR_PEAK_H) / SOLAR_SIGMA_H)**2)
-    return round(f, 4)
 
-# Build daily solar shape (fraction of peak)
-SOLAR_DAILY_SHAPE = []
-for t in range(N_DAY):
-    h_frac = t / (60 // DT_MIN)   # hour of day [0, 24)
-    f = _solar_fraction(h_frac)
-    SOLAR_DAILY_SHAPE.append(f)
+def hour_of(t):
+    return (t % N_DAY) / STEPS_H
 
-# Normalise so that daily peak = F_SOLAR_WINTER
-f_daily_max = max(SOLAR_DAILY_SHAPE) if max(SOLAR_DAILY_SHAPE) > 0 else 1.0
-SOLAR_DAILY_NORM = [
-    round(f / f_daily_max * F_SOLAR_WINTER, 4)
-    for f in SOLAR_DAILY_SHAPE
-]
 
-# Weekly profile — same shape every day (weather-driven, not schedule-driven)
-PROSUMER_WEEKLY_F = []
-for day in DAYS:
-    PROSUMER_WEEKLY_F += SOLAR_DAILY_NORM
+def smooth_step(x):
+    x = min(1.0, max(0.0, x))
+    return 0.5 * (1.0 - math.cos(math.pi * x))
 
-# Convert to heat injected into loop [W]
-PROSUMER_WEEKLY_Q = [
-    round(f * Q_PROSUMER_HEAT_W, 2)
-    for f in PROSUMER_WEEKLY_F
-]
 
-# Statistics
+D_PEAK_W = N_SUB * Q_PEAK_W * HLF  # coincident peak loop demand [W]
+D_STEADY_W = D_PEAK_W * F_STEADY
+
+# rated heat per prosumer, rounded DOWN to 1 kW so the set never exceeds the steady-state demand
+Q_PROSUMER_HEAT_W = math.floor(BASE_SHARE * D_STEADY_W / N_PROSUMER_SRC / 1e3) * 1e3
+
+PROSUMER_DAILY_F = [round(smooth_step((hour_of(t) - BASE_ON_H) / BASE_RAMP_H)
+                          * smooth_step((BASE_OFF_H - hour_of(t)) / BASE_RAMP_H), 4)
+                    for t in range(N_DAY)]
+PROSUMER_WEEKLY_F = PROSUMER_DAILY_F * N_DAYS  # same day repeated, as the demand
+PROSUMER_WEEKLY_Q = [round(f * Q_PROSUMER_HEAT_W, 2) for f in PROSUMER_WEEKLY_F]
+
+Q_max = max(PROSUMER_WEEKLY_Q)
 Q_mean = sum(PROSUMER_WEEKLY_Q) / N_WEEK
-Q_max  = max(PROSUMER_WEEKLY_Q)
 n_active = sum(1 for q in PROSUMER_WEEKLY_Q if q > 0)
 
-print(f"\nProsumer solar thermal profile (BASE — winter week):")
-print(f"  F_solar_winter   = {F_SOLAR_WINTER} "
-      f"(50% of summer peak)")
-print(f"  Q_prosumer_peak  = {Q_max/1e3:.1f} kW  "
-      f"(at solar noon, clear sky)")
-print(f"  Q_prosumer_mean  = {Q_mean/1e3:.2f} kW  (weekly average)")
-print(f"  Active timesteps : {n_active}/{N_WEEK}  "
-      f"({100*n_active/N_WEEK:.1f}%)")
-print(f"  Weekly energy    : {sum(PROSUMER_WEEKLY_Q)*DT_MIN/60/1e6:.3f} MWh/week per prosumer")
-print(f"  Network total    : "
-      f"{sum(PROSUMER_WEEKLY_Q)*DT_MIN/60*N_PROSUMER_SRC/1e6:.3f} MWh/week "
+print(f"\nProsumer production profile (BASE — winter week, base-load):")
+print(f"  Plateau {BASE_ON_H:.0f}:00-{BASE_OFF_H:.0f}:00, ramps {BASE_RAMP_H * 60:.0f} min")
+print(f"  Q_prosumer_rated = {Q_PROSUMER_HEAT_W / 1e3:.0f} kW per prosumer  "
+      f"({N_PROSUMER_SRC} x = {N_PROSUMER_SRC * Q_PROSUMER_HEAT_W / 1e6:.2f} MW, "
+      f"{100 * N_PROSUMER_SRC * Q_PROSUMER_HEAT_W / D_STEADY_W:.1f} % of the steady-state demand "
+      f"{D_STEADY_W / 1e6:.2f} MW)")
+print(f"  Q_prosumer_mean  = {Q_mean / 1e3:.1f} kW  (weekly average)")
+print(f"  Active timesteps : {n_active}/{N_WEEK}  ({100 * n_active / N_WEEK:.1f}%)")
+print(f"  Weekly energy    : {sum(PROSUMER_WEEKLY_Q) * dt_h / 1e6:.3f} MWh/week per prosumer")
+print(f"  Network total    : {sum(PROSUMER_WEEKLY_Q) * dt_h * N_PROSUMER_SRC / 1e6:.3f} MWh/week "
       f"({N_PROSUMER_SRC} prosumers)")
 
-# Export prosumer_production_profile.csv
+# Export prosumer_production_profile.csv (same format as before)
 PROSUMER_PROFILE_FILE = "prosumer_production_profile.csv"
-labels = timestep_labels()
 
 with open(os.path.join(OUT_DIR, PROSUMER_PROFILE_FILE), "w", newline="") as f:
     w = csv.writer(f)
     w.writerow([
-        "timestep",      # integer index [0, N_WEEK]
-        "label",         # human-readable timestamp (e.g. Mon_00:00)
+        "timestep",  # integer index [0, N_WEEK]
+        "label",  # human-readable timestamp (e.g. Mon 00:00)
         "f_normalised",  # fraction of Q_PROSUMER_HEAT_W [0, 1]
-        "Q_W",           # heat injected into loop per prosumer [W]
+        "Q_W",  # heat injected into loop per prosumer [W]
     ])
     for t in range(N_WEEK):
-        w.writerow([
-            t,
-            labels[t],
-            PROSUMER_WEEKLY_F[t],
-            PROSUMER_WEEKLY_Q[t],
-        ])
+        w.writerow([t, labels[t], PROSUMER_WEEKLY_F[t], PROSUMER_WEEKLY_Q[t]])
+print(f"  {PROSUMER_PROFILE_FILE} → {N_WEEK} rows, {N_DAYS} identical days x {N_DAY} steps/day")
 
-print(f"  {PROSUMER_PROFILE_FILE} → {N_WEEK} rows, "
-      f"{len(DAYS)} days × {N_DAY} steps/day")
+# ---- sanity budget (printed only: the balance is done in the network simulation) ---
+E_D = E_P = E_C = E_S = 0.0
+P_C_MAX = 0.0
+for t in range(N_WEEK):
+    D = WEEKLY_SHAPE[t] * D_PEAK_W
+    g = N_PROSUMER_SRC * PROSUMER_WEEKLY_Q[t]
+    up = min(D, g);
+    c = D - up
+    E_D += D * dt_h;
+    E_P += up * dt_h;
+    E_C += c * dt_h;
+    E_S += (g - up) * dt_h
+    P_C_MAX = max(P_C_MAX, c)
+Q_CENTRAL_W = math.ceil(P_C_MAX * (1 + CENTRAL_MARGIN) / 1e3) * 1e3
+print(f"  Loop demand          : peak {D_PEAK_W / 1e6:.2f} MW, {E_D / 1e6:.1f} MWh/week")
+print(f"  Indicative shares    : prosumers {100 * E_P / E_D:.1f} %  central {100 * E_C / E_D:.1f} %  "
+      f"| surplus {E_S / 1e6:.3f} MWh/week")
+print(f"  Central source       : peak residual {P_C_MAX / 1e6:.2f} MW (indicative rating "
+      f"{Q_CENTRAL_W / 1e6:.2f} MW with {100 * CENTRAL_MARGIN:.0f} % margin)")
+
+# ---- preview plot: the typical day --------------------------------------------------
+hh = [t / STEPS_H for t in range(N_DAY)]
+dem = [WEEKLY_SHAPE[t] * D_PEAK_W / 1e6 for t in range(N_DAY)]
+fig, axs = plt.subplots(2, 1, figsize=(10, 6.4), sharex=True)
+axs[0].plot(hh, [v / 1e3 for v in PROSUMER_WEEKLY_Q[:N_DAY]], color="tab:green", lw=1.8)
+axs[0].set_ylabel("heat injected per prosumer [kW]")
+axs[0].set_title("Prosumer production profile — typical day (identical for the 7 days)")
+axs[1].plot(hh, dem, color="grey", ls="--", lw=1.5, label="loop demand (all substations)")
+axs[1].plot(hh, [N_PROSUMER_SRC * v / 1e6 for v in PROSUMER_WEEKLY_Q[:N_DAY]], color="tab:green", lw=1.8,
+            label=f"{N_PROSUMER_SRC} prosumers")
+axs[1].set_ylabel("[MW]");
+axs[1].set_xlabel("hour of the day");
+axs[1].legend(fontsize=8)
+axs[1].set_xlim(0, 24);
+axs[1].set_xticks(range(0, 25, 2))
+for a in axs:
+    a.grid(alpha=0.3)
+fig.tight_layout()
+fig.savefig(os.path.join(OUT_DIR, "prosumer_profile_preview.png"), dpi=150)
+plt.close(fig)
 
 # ---------------------------------------------------------------------------
-# SECTION 9 — CSV EXPORT
+# SECTION 9 — PIPE SIZING
+# Flow in the pipe feeding node v (central source = slack), at timestep t:
+#       Q_t(v) = max( | sum over the subtree of v of (demand - injection) | ,
+#                     demand(v), injection(v) )
+# Design flow = maximum over the day (SIZING_CASE; the profiles repeat every day).
+# Loop-closing edges take the
+# smaller design flow of their two end nodes.
+# ---------------------------------------------------------------------------
+sub_nodes = set(tnb.building_nodes)
+T_dir = orient_from_sources(dhn, tnb.generator_nodes)
+topo_rev = list(reversed(list(nx.topological_sort(T_dir))))
+nodes_all = list(dhn.nodes())
+use_injection = SIZING_CASE != "central_only"
+
+Q_DESIGN = {n: 0.0 for n in nodes_all}
+for t in range(N_DAY):
+    D_n = {n: (WEEKLY_SHAPE[t] * Q_PEAK_W * HLF if n in sub_nodes else 0.0) for n in nodes_all}
+    I_n = {n: 0.0 for n in nodes_all}
+    if use_injection:
+        for n in sub_nodes:
+            if bid_of[n] in prosumer_src_set:
+                I_n[n] = PROSUMER_WEEKLY_Q[t]
+    net_down = {}
+    for n in topo_rev:
+        net_down[n] = D_n[n] - I_n[n] + sum(net_down[c] for c in T_dir.successors(n))
+    for n in nodes_all:
+        if T_dir.in_degree(n) == 1:
+            Q_DESIGN[n] = max(Q_DESIGN[n], abs(net_down[n]), D_n[n], I_n[n])
+
+
+def q_design(child):
+    return Q_DESIGN[child]
+
+
+N_dhn = dhn.number_of_nodes()
+E_dhn = dhn.number_of_edges()
+L_dhn = E_dhn - N_dhn + 1
+trunk_Q = max(q_design(c) for c in T_dir.nodes if T_dir.in_degree(c) == 1)
+print(f"\nDHN topology: N={N_dhn}, E={E_dhn}, L={L_dhn}, is_meshed={not nx.is_tree(dhn)}")
+print(f"Pipe sizing case: {SIZING_CASE}  (largest design flow {trunk_Q / 1e6:.2f} MW)")
+
+PIPE_SIZING, DESIGN_ROWS = {}, []
+for u, v in dhn.edges():
+    if T_dir.has_edge(u, v):
+        from_n, to_n, loop_edge = u, v, False
+        Q = q_design(v)
+    elif T_dir.has_edge(v, u):
+        from_n, to_n, loop_edge = v, u, False
+        Q = q_design(u)
+    else:  # loop-closing edge
+        from_n, to_n, loop_edge = u, v, True
+        cands = [q_design(x) for x in (u, v) if T_dir.in_degree(x) == 1]
+        Q = min(cands) if cands else Q_PEAK_W * HLF
+    Lp = round(dhn.edges[u, v].get("length", 0.0), 2)
+    e = select_dn(GEN, Q)
+    uid = node_id_map.get(from_n, str(from_n))
+    vid = node_id_map.get(to_n, str(to_n))
+    pid = f"{uid}_{vid}"
+    PIPE_SIZING[pid] = pipe_record(GEN, e, uid, vid, Lp)
+    DESIGN_ROWS.append((pid, round(Q, 1), e["mdot"], e["velocity"], e["DN"], loop_edge))
+
+assert all(r[3] <= V_MAX + 1e-9 for r in DESIGN_ROWS), "velocity above v_max"
+L_tot = sum(d["length_m"] for d in PIPE_SIZING.values())
+dns = sorted({r[4] for r in DESIGN_ROWS})
+print(f"\nPipes: {len(PIPE_SIZING)} sized  |  DN {dns[0]}-{dns[-1]}  |  "
+      f"max velocity {max(r[3] for r in DESIGN_ROWS):.2f} m/s (limit {V_MAX})")
+print(f"  L_tot  = {L_tot / 1000:.2f} km")
+print(f"  Q_tot  = {N_SUB * Q_PEAK_W / 1e6:.2f} MW  (heating mode, BASE)")
+
+# ---------------------------------------------------------------------------
+# SECTION 10 — CSV EXPORT
 # ---------------------------------------------------------------------------
 print(f"\nExporting to: {OUT_DIR}")
+PROSUMER_PROFILE_FILE = "prosumer_production_profile.csv"  # written in Section 8
 
 with open(os.path.join(OUT_DIR, "nodes.csv"), "w", newline="") as f:
     w = csv.writer(f)
     w.writerow([
         "node_id", "node_type", "x_m", "y_m",
-        "Q_peak_heat_W",       # peak heating demand [W]
-        "Q_prosumer_W",        # heat injected by prosumers [W]
+        "Q_peak_heat_W",  # peak heating demand [W]
+        "Q_prosumer_W",  # prosumer production profile file
         "T_supply_set_degC",
         "delta_T_nom_K",
         "p_ref_bar",
         "prosumer",
     ])
-    for nid, ntype, x, y in node_rows:
+    for nid, ntype, x, y, bid in node_rows:
         if ntype == "source":
-            # Backup — balancing only, not always active
-            w.writerow([nid, ntype, x, y,
-                        "",
-                        "",
-                        T_SUPPLY,
-                        "",
-                        P_REF_BAR,
-                        "False"])
+            # central source — balancing (slack) in the simulation
+            w.writerow([nid, ntype, x, y, "", "", T_SUPPLY, "", P_REF_BAR, "False"])
         elif ntype == "prosumer":
-            # Prosumer
-            w.writerow([nid, ntype, x, y,
-                        "demand_profile.csv",
-                        "prosumer_production_profile.csv",
-                        T_SUPPLY,
-                        DELTA_T,
-                        "",
-                        "True"])
+            w.writerow([nid, ntype, x, y, "demand_profile.csv", PROSUMER_PROFILE_FILE,
+                        T_SUPPLY, DELTA_T, "", "True"])
         elif ntype == "substation":
-            # Base consumer
-            w.writerow([nid, ntype, x, y,
-                        "demand_profile.csv",
-                        "",
-                        "",
-                        DELTA_T,
-                        "",
-                        "False"])
+            w.writerow([nid, ntype, x, y, "demand_profile.csv", "", "", DELTA_T, "", "False"])
         else:
-            w.writerow([nid, ntype, x, y,
-                        "", "", "", "", "", "",])
-
+            w.writerow([nid, ntype, x, y, "", "", "", "", "", ""])
 print(f"  nodes.csv  → {len(node_rows)} rows")
 
-with open(os.path.join(OUT_DIR, "pipes.csv"), "w", newline="") as f:
-    w = csv.writer(f)
-    w.writerow([
-        "pipe_id", "from_node", "to_node",
-        "length_m", "DN_mm", "d_inner_m", "d_outer_m", "wall_m",
-        "insulation_thickness_m", "casing_thickness_m", "d_casing_m",
-        "roughness_mm",
-        "fluid_rho_kgm3", "fluid_cp_JkgK", "fluid_mu_Pas", "fluid_lambda_WmK",
-        "steel_rho_kgm3", "steel_cp_JkgK", "steel_lambda_WmK",
-        "PUR_rho_kgm3", "PUR_cp_JkgK", "PUR_lambda_WmK",
-        "HDPE_rho_kgm3", "HDPE_cp_JkgK", "HDPE_lambda_WmK",
-        "burial_depth_m", "soil_lambda_WmK", "T_ground_degC",
-        "h_ext_Wm2K", "U_linear_WmK", "U_Wm2K"])
-    for pid, d in PIPE_SIZING.items():
-        w.writerow([
-            pid, d["from_node"], d["to_node"],
-            d["length_m"], d["DN_mm"], d["d_inner_m"], d["d_outer_m"],
-            d["wall_m"], d["insulation_thickness_m"],
-            d["casing_thickness_m"], d["d_casing_m"],
-            d["roughness_mm"],
-            d["fluid_rho_kgm3"], d["fluid_cp_JkgK"],
-            d["fluid_mu_Pas"],   d["fluid_lambda_WmK"],
-            d["steel_rho_kgm3"], d["steel_cp_JkgK"], d["steel_lambda_WmK"],
-            d["PUR_rho_kgm3"],   d["PUR_cp_JkgK"],   d["PUR_lambda_WmK"],
-            d["HDPE_rho_kgm3"],  d["HDPE_cp_JkgK"],  d["HDPE_lambda_WmK"],
-            d["burial_depth_m"], d["soil_lambda_WmK"], d["T_ground_degC"],
-            d["h_ext_Wm2K"], d["U_linear_WmK"], d["U_Wm2K"]])
+write_pipes_csv(os.path.join(OUT_DIR, "pipes.csv"), PIPE_SIZING)
 print(f"  pipes.csv  → {len(PIPE_SIZING)} rows")
 
-# ---------------------------------------------------------------------------
-# SECTION 10 — TOPOLOGY PLOT
-# ---------------------------------------------------------------------------
-tnb.plot(dhn=dhn, title="DHN_TG_5G_M_M_BASE", show=False)
+with open(os.path.join(OUT_DIR, "pipe_design_flows.csv"), "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["pipe_id", "Q_design_W", "mdot_kgs", "velocity_ms", "DN_mm", "loop_closing"])
+    w.writerows(DESIGN_ROWS)
+print("  prosumer_profile_preview.png, pipe_design_flows.csv written")
 
-ax  = plt.gca()
+# ---------------------------------------------------------------------------
+# SECTION 11 — TOPOLOGY PLOT
+# ---------------------------------------------------------------------------
+tnb.plot(dhn=dhn, title="5G_M_M_BASE", show=False)
+
+ax = plt.gca()
 pos_rou = nx.get_node_attributes(tnb.rou, "pos")
 for n in tnb.building_nodes:
-    b_idx = tnb.building_nodes.index(n)
-    if b_idx in prosumer_src_set:
+    if bid_of[n] in prosumer_src_set:
         x, y = pos_rou[n]
-        ax.add_patch(plt.Circle((x, y), radius=8,
-                                facecolor="#CCCCFF",
-                                edgecolor="blue",
+        ax.add_patch(plt.Circle((x, y), radius=8, facecolor="#CCCCFF", edgecolor="blue",
                                 linewidth=2.0, zorder=6))
 
-import matplotlib.lines as mlines
-handles, labels = ax.get_legend_handles_labels()
-prosumer_handle = mlines.Line2D([], [], color='none',
-                                marker='o',
-                                markersize=10,
-                                markerfacecolor="#CCCCFF",
-                                markeredgecolor="blue",
-                                markeredgewidth=2.0,
-                                label="Prosumers")
-
+handles, labs = ax.get_legend_handles_labels()
+handles.append(mlines.Line2D([], [], color="none", marker="o", markersize=10,
+                             markerfacecolor="#CCCCFF", markeredgecolor="blue",
+                             markeredgewidth=2.0))
+labs.append("Prosumers")
+ax.legend(handles, labs, loc="best", fontsize=8)
 
 plot_path = os.path.join(OUT_DIR, "topology.png")
-plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+plt.savefig(plot_path, dpi=300, bbox_inches="tight")
 plt.close()
 print(f"  topology.png → {plot_path}")
 print(f"\nDone → {OUT_DIR}")
