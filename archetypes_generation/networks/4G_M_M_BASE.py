@@ -1,6 +1,6 @@
-# DHN_TG_4G_M_M_BASE.py
+# 4G_M_M_BASE.py
 #
-# Benchmark archetype: Technology Assessment, 4GDH, Meshed, Medium
+# Benchmark archetype: 4GDH, Meshed, Medium
 #
 # Methodology II — Algorithmic generation
 #   Step 1: Synthetic urban district
@@ -11,21 +11,19 @@
 #   Control    : (variable flow, constant temperature)
 #                but the TWO SOURCES have different, complementary roles:
 #
-#   src0 — main/backup plant (e.g. CHP or large heat-only boiler)
+#   src0 — primary source, VF-CT
 #          Hydraulic  : "pressure" reference (the network's hydraulic anchor)
-#          Thermal    : fixed T_out = 70°C (nominal, BASE peak-winter scenario)
+#          Thermal    : fixed T_out = 60°C (nominal, BASE peak-winter scenario)
 #          Mass flow  : FREE — result of the solver's hydraulic balance
 #                       (covers whatever src1 does not supply)
 #
-#   src1 — secondary plant, constant-flow constant-temperature
-#          (representative of a waste-heat recovery unit plant)
-#          Hydraulic  : variable "mass_flow" (profile —
-#                       see Section 6bis)
+#   src1 — secondary source, VF-CT
+#          Hydraulic  : variable "mass_flow" (profile — see Section 6bis)
 #          Thermal    : fixed T_out = 60°C
 #
 #   delta_T    : 20 K at substations (design)
 #   p_ref      : 8 bar (reference pressure at src0)
-#   N_sources  : 2 (1 main + 1 secondary - WH)
+#   N_sources  : 2 (primary + 1 secondary)
 #   Q_peak_sub : 175 kW/substation (uniform, base scenario)
 #
 # Outputs:
@@ -44,7 +42,7 @@ import networkx as nx
 # ---------------------------------------------------------------------------
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(THIS_DIR, "..", ".."))
-OUT_DIR = os.path.join(THIS_DIR, "..", "archetypes", "DHN_TG_4G_M_M_BASE")
+OUT_DIR = os.path.join(THIS_DIR, "..", "archetypes", "4G_M_M_BASE")
 os.makedirs(OUT_DIR, exist_ok=True)
 sys.path.insert(0, REPO_ROOT)
 
@@ -63,6 +61,9 @@ from archetypes_generation.constants import (
 from archetypes_generation.demand_profile import (
     Q_PEAK_W, DT_MIN, N_DAY, N_WEEK, DAYS, WEEKLY_SHAPE, F_STEADY, timestep_labels,
 )
+
+from archetypes_generation.pipe_system import select_dn, pipe_record, write_pipes_csv, PipeSizingError
+GEN = "4G"
 
 sys.path.insert(0, os.path.join(REPO_ROOT, "dhn_benchmark", "networks"))
 from synthetic_district import (
@@ -91,11 +92,11 @@ BETA = 1.00  # constrained Steiner flexibility factor
 gp = GEN_OPERATING["4G"]
 RHO = gp["rho"]
 CP = gp["cp"]
-DELTA_T = gp["delta_T_nom"]  # 20 K
+DELTA_T = gp["delta_T_nom"]         # 20 K
 V_MAX = gp["v_max"]
-T_SUPPLY_SRC0 = gp["T_supply_nom"]  # 70°C — main plant (BASE, peak winter)
-T_SUPPLY_SRC1 = 60.0                # °C — secondary plant (waste heat / biomass, CF-CT)
-P_REF_BAR = gp["P_nom_bar"]  # 6 bar, reference pressure at src0
+T_SUPPLY_SRC0 = gp["T_supply_nom"]  # 60°C — primary source
+T_SUPPLY_SRC1 = 60.0                # 60°C — secondary source
+P_REF_BAR = gp["P_nom_bar"]         # 6 bar, reference pressure at src0
 
 Q_PEAK_W = Q_PEAK_W  # W per substation
 HLF = 1.10  # heat loss factor
@@ -107,7 +108,7 @@ def unpack_pipe(vals):
 
 
 print("=" * 60)
-print("DHN_TG_4G_M_M_BASE — 4GDH | Meshed | Medium | src0 free, src1 CF-CT")
+print("4G_M_M_BASE — 4GDH | Meshed | Medium | src0, src1")
 print("=" * 60)
 
 # ---------------------------------------------------------------------------
@@ -208,28 +209,6 @@ print(f"\nNodes: {len(node_rows)} "
 # ---------------------------------------------------------------------------
 # SECTION 6 — PIPE SIZING
 # ---------------------------------------------------------------------------
-def u_linear(d_o, d_casing):
-    R_ins = math.log(d_casing / d_o) / (2 * math.pi * LAMBDA_PUR)
-    R_soil = math.log(2 * BURIAL_DEPTH / d_casing) / (2 * math.pi * LAMBDA_SOIL)
-    return round(1.0 / (R_ins + R_soil), 4)
-
-
-def u_per_area(U_lin, d_o):
-    return round(U_lin / (math.pi * d_o), 4)
-
-
-def select_dn(Q_w):
-    mdot = Q_w / (CP * DELTA_T)
-    for dn, vals in sorted(PIPE_CATALOGUE.items()):
-        di, do, s, dc, sc = unpack_pipe(vals)
-        A = math.pi * di ** 2 / 4.0
-        if mdot / (RHO * A) <= V_MAX:
-            return dn, di, do, dc, s, sc, round(mdot, 4)
-    dn, vals = sorted(PIPE_CATALOGUE.items())[-1]
-    di, do, s, dc, sc = unpack_pipe(vals)
-    A = math.pi * di ** 2 / 4.0
-    return dn, di, do, dc, s, sc, round(mdot, 4)
-
 
 G_dir = nx.DiGraph()
 for node in dhn.nodes():
@@ -295,44 +274,11 @@ for u, v in dhn.edges():
     Q = n_down * Q_PEAK_W * HLF
     data = dhn.edges[u, v]
     Lp = round(data.get("length", 0.0), 2)
-    dn, di, do, dc, s, sc, mdot = select_dn(Q)
-    ins_t = round((dc - do) / 2 - sc, 5)
-    UL = u_linear(do, dc)
+    e = select_dn(GEN, Q)
     uid = node_id_map.get(from_n, str(from_n))
     vid = node_id_map.get(to_n, str(to_n))
     pid = f"{uid}_{vid}"
-    PIPE_SIZING[pid] = {
-        "from_node": uid,
-        "to_node": vid,
-        "length_m": Lp,
-        "DN_mm": dn,
-        "d_inner_m": di,
-        "d_outer_m": do,
-        "wall_m": s,
-        "insulation_thickness_m": ins_t,
-        "casing_thickness_m": sc,
-        "d_casing_m": dc,
-        "roughness_mm": ROUGHNESS_STEEL,
-        "fluid_rho_kgm3": RHO,
-        "fluid_cp_JkgK": CP,
-        "fluid_mu_Pas": gp["mu"],
-        "fluid_lambda_WmK": gp["lambda"],
-        "steel_rho_kgm3": RHO_STEEL,
-        "steel_cp_JkgK": CP_STEEL,
-        "steel_lambda_WmK": LAMBDA_STEEL,
-        "PUR_rho_kgm3": RHO_PUR,
-        "PUR_cp_JkgK": CP_PUR,
-        "PUR_lambda_WmK": LAMBDA_PUR,
-        "HDPE_rho_kgm3": RHO_HDPE,
-        "HDPE_cp_JkgK": CP_HDPE,
-        "HDPE_lambda_WmK": LAMBDA_HDPE,
-        "burial_depth_m": BURIAL_DEPTH,
-        "soil_lambda_WmK": LAMBDA_SOIL,
-        "T_ground_degC": T_GROUND,
-        "h_ext_Wm2K": H_EXT,
-        "U_linear_WmK": UL,
-        "U_Wm2K": round(UL / (math.pi * do), 4),
-    }
+    PIPE_SIZING[pid] = pipe_record(GEN, e, uid, vid, Lp)
 
 L_tot = sum(d["length_m"] for d in PIPE_SIZING.values())
 print(f"\nPipes: {len(PIPE_SIZING)} sized")
@@ -435,7 +381,7 @@ with open(os.path.join(OUT_DIR, "nodes.csv"), "w", newline="") as f:
             w.writerow([nid, ntype, x, y,
                         "",                  # Q_peak — not applicable
                         sp["m_flow_nom"],    # "" for src0 (free), fixed for src1
-                        sp["T_supply"],      # 70°C src0, 65°C src1
+                        sp["T_supply"],      # 60°C src0, 60°C src1
                         "",
                         P_REF_BAR if nid == "src0" else ""])
         elif ntype == "substation":
@@ -450,39 +396,13 @@ with open(os.path.join(OUT_DIR, "nodes.csv"), "w", newline="") as f:
 
 print(f"  nodes.csv  → {len(node_rows)} rows")
 
-with open(os.path.join(OUT_DIR, "pipes.csv"), "w", newline="") as f:
-    w = csv.writer(f)
-    w.writerow([
-        "pipe_id", "from_node", "to_node",
-        "length_m", "DN_mm", "d_inner_m", "d_outer_m", "wall_m",
-        "insulation_thickness_m", "casing_thickness_m", "d_casing_m",
-        "roughness_mm",
-        "fluid_rho_kgm3", "fluid_cp_JkgK", "fluid_mu_Pas", "fluid_lambda_WmK",
-        "steel_rho_kgm3", "steel_cp_JkgK", "steel_lambda_WmK",
-        "PUR_rho_kgm3", "PUR_cp_JkgK", "PUR_lambda_WmK",
-        "HDPE_rho_kgm3", "HDPE_cp_JkgK", "HDPE_lambda_WmK",
-        "burial_depth_m", "soil_lambda_WmK", "T_ground_degC",
-        "h_ext_Wm2K", "U_linear_WmK", "U_Wm2K"])
-    for pid, d in PIPE_SIZING.items():
-        w.writerow([
-            pid, d["from_node"], d["to_node"],
-            d["length_m"], d["DN_mm"], d["d_inner_m"], d["d_outer_m"],
-            d["wall_m"], d["insulation_thickness_m"],
-            d["casing_thickness_m"], d["d_casing_m"],
-            d["roughness_mm"],
-            d["fluid_rho_kgm3"], d["fluid_cp_JkgK"],
-            d["fluid_mu_Pas"], d["fluid_lambda_WmK"],
-            d["steel_rho_kgm3"], d["steel_cp_JkgK"], d["steel_lambda_WmK"],
-            d["PUR_rho_kgm3"], d["PUR_cp_JkgK"], d["PUR_lambda_WmK"],
-            d["HDPE_rho_kgm3"], d["HDPE_cp_JkgK"], d["HDPE_lambda_WmK"],
-            d["burial_depth_m"], d["soil_lambda_WmK"], d["T_ground_degC"],
-            d["h_ext_Wm2K"], d["U_linear_WmK"], d["U_Wm2K"]])
+write_pipes_csv(os.path.join(OUT_DIR, "pipes.csv"), PIPE_SIZING)
 print(f"  pipes.csv  → {len(PIPE_SIZING)} rows")
 
 # ---------------------------------------------------------------------------
 # SECTION 8 — TOPOLOGY PLOT
 # ---------------------------------------------------------------------------
-tnb.plot(dhn=dhn, title="DHN_TG_4G_M_M_BASE", show=False)
+tnb.plot(dhn=dhn, title="4G_M_M_BASE", show=False)
 plot_path = os.path.join(OUT_DIR, "topology.png")
 plt.savefig(plot_path, dpi=300, bbox_inches='tight')
 plt.close()

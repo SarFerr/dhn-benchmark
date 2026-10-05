@@ -1,6 +1,6 @@
-# DHN_TG_5G_M_M_BASE.py
+# 5G_M_M_BASE.py
 #
-# Benchmark archetype: Technology Assessment, 5GDHC, Meshed, Medium
+# Benchmark archetype: 5GDHC, Meshed, Medium
 #
 # Methodology II — Algorithmic generation
 #   Step 1: Synthetic urban district
