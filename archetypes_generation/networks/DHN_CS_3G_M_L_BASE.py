@@ -5,7 +5,7 @@
 # Methodology II — Algorithmic generation
 #   Step 1: Synthetic urban district (DistrictGenerator)
 #   Step 2: Street graph (StreetGraphBuilder)
-#   Step 3: Constrained Steiner tree beta=1.25 (ThermalNetworkBuilder)
+#   Step 3: Constrained Steiner tree beta=1.00 (ThermalNetworkBuilder)
 #
 # # Operating conditions (3GDH):
 #   Control    : VF-CT (variable flow, constant temperature)
