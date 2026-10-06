@@ -3,34 +3,6 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
-        <entry key="\archetypes_generation\archetypes\DHN_TG_5G_M_M_BASE\prosumer_production_profile.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="\archetypes_generation\archetypes\DHN_THV_3G_L_S_BASE\pipes.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="\archetypes_generation\archetypes\DHN_THV_3G_R_S_BASE\nodes.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="\archetypes_generation\archetypes\DHN_THV_3G_R_S_BASE\pipes.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="\archetypes_generation\data\demand_profile.csv">
           <value>
             <Attribute>

@@ -502,3 +502,22 @@ plt.savefig(plot_path, dpi=300, bbox_inches="tight")
 plt.close()
 print(f"  topology.png → {plot_path}")
 print(f"\nDone → {OUT_DIR}")
+
+# ---------------------------------------------------------------------------
+# SECTION 9 — INCIDENCE MATRIX
+# ---------------------------------------------------------------------------
+
+node_ids  = [r[0] for r in node_rows]
+edge_ids  = list(PIPE_SIZING.keys())                      # pipe_id = "<from>_<to>"
+node_pos  = {n: i for i, n in enumerate(node_ids)}
+edge_ends = [(node_pos[d["from_node"]], node_pos[d["to_node"]])
+             for d in PIPE_SIZING.values()]
+
+with open(os.path.join(OUT_DIR, "incidence_matrix.csv"), "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["node_id"] + edge_ids)
+    for i, node in enumerate(node_ids):
+        w.writerow([node] + [-1 if u == i else (1 if v == i else 0)
+                             for u, v in edge_ends])
+
+print(f"  incidence_matrix.csv → {len(node_ids)} x {len(edge_ids)}")
