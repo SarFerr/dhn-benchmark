@@ -658,7 +658,7 @@ class ThermalNetworkBuilder:
 
     # ------------------------------------------------------------------
     def plot(self, dhn=None, ax=None, show=True,
-             with_district=True, title="DHN_TG_3G_M_M_BASE"):
+             with_district=True, title="3G_M_M_BASE"):
 
         dhn = dhn if dhn is not None else self.dhn
 

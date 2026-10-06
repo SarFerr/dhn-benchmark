@@ -267,7 +267,7 @@ print(f"  pipes.csv  → {len(PIPE_SIZING)} rows")
 # SECTION 8 — TOPOLOGY PLOT
 # ---------------------------------------------------------------------------
 tnb.plot(dhn=dhn,
-         title=f"DHN_CS_3G_M_L_BASE",
+         title=f"3G_M_L_BASE",
          show=False)
 
 import matplotlib.pyplot as plt
