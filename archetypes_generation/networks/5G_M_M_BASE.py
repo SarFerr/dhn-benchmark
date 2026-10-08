@@ -15,13 +15,16 @@
 #     ONE generation profile, built ad hoc for the benchmark (no claim of
 #     physical realism), the same for every prosumer and repeated identically
 #     over the 7 days like the demand profile. It is a base-load profile: a
-#     heating-day plateau sized so that the 10 prosumers together deliver
-#     BASE_SHARE of the steady-state loop demand (F_STEADY of the peak).
+#     heating-day plateau. Each prosumer first covers its OWN load
+#     (self-consumption) and injects the SURPLUS into the loop; the rating is
+#     chosen so that the surplus of the 10 prosumers covers BASE_SHARE (70 %)
+#     of the base load of the pure consumers (F_STEADY of the peak).
 #     The source technology is deliberately not specified (waste heat,
 #     storage-backed heat pump, ...).
 #   SECONDARY source — ONE CENTRALISED plant at the TG-3 position.
-#    It acts as slack in the simulation:
-#    it covers whatever the prosumers do not supply (mainly the morning peak).
+#    It acts as slack in the simulation: it covers the morning peak and the
+#    share of the base load not covered by the prosumers (1 - BASE_SHARE).
+#    It never has to absorb a prosumer surplus (BASE_SHARE < 1).
 #
 #   T_supply       : 20°C (temperature set-point)
 #   delta_T        : 5 K at substations
@@ -67,7 +70,7 @@ from archetypes_generation.pipe_system import (
 
 GEN = "5G"
 
-sys.path.insert(0, os.path.join(REPO_ROOT, "dhn_benchmark", "networks"))
+sys.path.insert(0, THIS_DIR)
 from synthetic_district import (
     DistrictGenerator,
     StreetGraphBuilder,
@@ -92,7 +95,7 @@ BETA = 1.00
 
 # --- Decentralised sources (primary): 10 prosumers, all injecting --------------
 N_PROSUMER_SRC = 10  # 10 % of the substations
-BASE_SHARE = 1.00  # share of the steady-state loop demand delivered by the 10 prosumers
+BASE_SHARE = 0.70  # share of the consumers' base load covered by the prosumers' SURPLUS
 BASE_ON_H = 6.0  # start of the heating day [h]
 BASE_OFF_H = 22.0  # end of the heating day  [h]
 BASE_RAMP_H = 0.75  # smooth ramp up / down [h]
@@ -265,8 +268,10 @@ print(f"\nNodes: {len(node_rows)} (1 central source + {n_pro} prosumers + "
 # exactly like the demand profile. No stochastic component.
 #   f(t) = heating-day plateau BASE_ON_H-BASE_OFF_H with smooth ramps, in [0, 1]
 #   Q(t) = f(t) * Q_PROSUMER_HEAT_W
-# Q_PROSUMER_HEAT_W is sized so that the prosumers together deliver BASE_SHARE of
-# the steady-state loop demand (F_STEADY of the coincident peak).
+# Q_PROSUMER_HEAT_W = own base load + surplus, where the surplus of the
+# N_PROSUMER_SRC prosumers covers BASE_SHARE of the base load of the pure
+# consumers (F_STEADY of their coincident peak). The central plant covers the
+# rest of the base load and the morning peak.
 # ---------------------------------------------------------------------------
 labels = timestep_labels()
 dt_h = DT_MIN / 60.0
@@ -287,8 +292,13 @@ def smooth_step(x):
 D_PEAK_W = N_SUB * Q_PEAK_W * HLF  # coincident peak loop demand [W]
 D_STEADY_W = D_PEAK_W * F_STEADY
 
-# rated heat per prosumer, rounded DOWN to 1 kW so the set never exceeds the steady-state demand
-Q_PROSUMER_HEAT_W = math.floor(BASE_SHARE * D_STEADY_W / N_PROSUMER_SRC / 1e3) * 1e3
+N_CONSUMERS    = N_SUB - N_PROSUMER_SRC
+Q_OWN_BASE_W   = Q_PEAK_W * F_STEADY                           # prosumer own load at base load
+D_STEADY_NET_W = N_CONSUMERS * Q_PEAK_W * F_STEADY * HLF       # base load of the pure consumers
+SURPLUS_BASE_W = BASE_SHARE * D_STEADY_NET_W / N_PROSUMER_SRC  # surplus injected per prosumer
+
+# rated heat per prosumer, rounded DOWN to 1 kW (the surplus never exceeds the target share)
+Q_PROSUMER_HEAT_W = math.floor((Q_OWN_BASE_W + SURPLUS_BASE_W) / 1e3) * 1e3
 
 PROSUMER_DAILY_F = [round(smooth_step((hour_of(t) - BASE_ON_H) / BASE_RAMP_H)
                           * smooth_step((BASE_OFF_H - hour_of(t)) / BASE_RAMP_H), 4)
@@ -302,10 +312,13 @@ n_active = sum(1 for q in PROSUMER_WEEKLY_Q if q > 0)
 
 print(f"\nProsumer production profile (BASE — winter week, base-load):")
 print(f"  Plateau {BASE_ON_H:.0f}:00-{BASE_OFF_H:.0f}:00, ramps {BASE_RAMP_H * 60:.0f} min")
-print(f"  Q_prosumer_rated = {Q_PROSUMER_HEAT_W / 1e3:.0f} kW per prosumer  "
-      f"({N_PROSUMER_SRC} x = {N_PROSUMER_SRC * Q_PROSUMER_HEAT_W / 1e6:.2f} MW, "
-      f"{100 * N_PROSUMER_SRC * Q_PROSUMER_HEAT_W / D_STEADY_W:.1f} % of the steady-state demand "
-      f"{D_STEADY_W / 1e6:.2f} MW)")
+print(f"  Q_prosumer_rated = {Q_PROSUMER_HEAT_W / 1e3:.0f} kW per prosumer "
+      f"(own base load {Q_OWN_BASE_W / 1e3:.1f} kW + surplus "
+      f"{(Q_PROSUMER_HEAT_W - Q_OWN_BASE_W) / 1e3:.1f} kW)")
+print(f"  Surplus of the {N_PROSUMER_SRC} prosumers at base load = "
+      f"{N_PROSUMER_SRC * (Q_PROSUMER_HEAT_W - Q_OWN_BASE_W) / 1e6:.2f} MW = "
+      f"{100 * N_PROSUMER_SRC * (Q_PROSUMER_HEAT_W - Q_OWN_BASE_W) / D_STEADY_NET_W:.1f} % "
+      f"of the consumers' base load ({D_STEADY_NET_W / 1e6:.2f} MW)")
 print(f"  Q_prosumer_mean  = {Q_mean / 1e3:.1f} kW  (weekly average)")
 print(f"  Active timesteps : {n_active}/{N_WEEK}  ({100 * n_active / N_WEEK:.1f}%)")
 print(f"  Weekly energy    : {sum(PROSUMER_WEEKLY_Q) * dt_h / 1e6:.3f} MWh/week per prosumer")
@@ -328,24 +341,34 @@ with open(os.path.join(OUT_DIR, PROSUMER_PROFILE_FILE), "w", newline="") as f:
 print(f"  {PROSUMER_PROFILE_FILE} → {N_WEEK} rows, {N_DAYS} identical days x {N_DAY} steps/day")
 
 # ---- sanity budget (printed only: the balance is done in the network simulation) ---
+# Each prosumer self-consumes first; the loop sees the consumers' demand, the
+# residual demand of the prosumers and the prosumers' surplus injection.
 E_D = E_P = E_C = E_S = 0.0
 P_C_MAX = 0.0
+P_C_MIN = float("inf")
 for t in range(N_WEEK):
-    D = WEEKLY_SHAPE[t] * D_PEAK_W
-    g = N_PROSUMER_SRC * PROSUMER_WEEKLY_Q[t]
-    up = min(D, g);
-    c = D - up
-    E_D += D * dt_h;
-    E_P += up * dt_h;
-    E_C += c * dt_h;
+    own  = WEEKLY_SHAPE[t] * Q_PEAK_W * HLF
+    prod = PROSUMER_WEEKLY_Q[t]
+    D    = N_CONSUMERS * own + N_PROSUMER_SRC * max(own - prod, 0.0)   # loop demand
+    g    = N_PROSUMER_SRC * max(prod - own, 0.0)                       # surplus injected
+    up   = min(D, g)
+    c    = D - up                                                      # central plant
+    E_D += D * dt_h
+    E_P += up * dt_h
+    E_C += c * dt_h
     E_S += (g - up) * dt_h
     P_C_MAX = max(P_C_MAX, c)
+    if WEEKLY_SHAPE[t] > 0:
+        P_C_MIN = min(P_C_MIN, c)
 Q_CENTRAL_W = math.ceil(P_C_MAX * (1 + CENTRAL_MARGIN) / 1e3) * 1e3
 print(f"  Loop demand          : peak {D_PEAK_W / 1e6:.2f} MW, {E_D / 1e6:.1f} MWh/week")
 print(f"  Indicative shares    : prosumers {100 * E_P / E_D:.1f} %  central {100 * E_C / E_D:.1f} %  "
       f"| surplus {E_S / 1e6:.3f} MWh/week")
 print(f"  Central source       : peak residual {P_C_MAX / 1e6:.2f} MW (indicative rating "
-      f"{Q_CENTRAL_W / 1e6:.2f} MW with {100 * CENTRAL_MARGIN:.0f} % margin)")
+      f"{Q_CENTRAL_W / 1e6:.2f} MW with {100 * CENTRAL_MARGIN:.0f} % margin), "
+      f"min while heating {P_C_MIN / 1e6:.2f} MW")
+assert E_S == 0.0, "prosumer surplus exceeds the loop demand: the central plant would absorb heat"
+
 
 # ---- preview plot: the typical day --------------------------------------------------
 hh = [t / STEPS_H for t in range(N_DAY)]
