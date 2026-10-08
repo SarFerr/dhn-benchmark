@@ -17,9 +17,19 @@
 #          Mass flow  : FREE — result of the solver's hydraulic balance
 #                       (covers whatever src1 does not supply)
 #
-#   src1 — secondary source, VF-CT
-#          Hydraulic  : variable "mass_flow" (profile — see Section 6bis)
+#   src1 — secondary source (e.g. industrial waste heat), scheduled CF-CT
+#          Hydraulic  : imposed "mass_flow", ON/OFF schedule (Section 6bis):
+#                       M_FLOW_NOM_SRC1 (~11 kg/s) Mon-Fri 07:00-20:00,
+#                       0 kg/s at night and at weekends
 #          Thermal    : fixed T_out = 60°C
+#
+#   Network-level control: VF-CT — src0 follows the demand at constant T,
+#   src1 injects a scheduled constant flow at constant T.
+#
+# Pipe sizing: as if src0 ALONE supplied the full peak demand (same rule as
+#   3G_M_M_BASE). src1 is non-dispatchable and OFF at weekends, so the worst
+#   case is src0-only; src1 is a point injection whose service pipe is sized
+#   on its own nominal mass flow.
 #
 #   delta_T    : 20 K at substations (design)
 #   p_ref      : 8 bar (reference pressure at src0)
@@ -65,7 +75,7 @@ from archetypes_generation.demand_profile import (
 from archetypes_generation.pipe_system import select_dn, pipe_record, write_pipes_csv, PipeSizingError
 GEN = "4G"
 
-sys.path.insert(0, os.path.join(REPO_ROOT, "dhn_benchmark", "networks"))
+sys.path.insert(0, THIS_DIR)   # synthetic_district.py lives next to this script
 from synthetic_district import (
     DistrictGenerator,
     StreetGraphBuilder,
@@ -96,7 +106,7 @@ DELTA_T = gp["delta_T_nom"]         # 20 K
 V_MAX = gp["v_max"]
 T_SUPPLY_SRC0 = gp["T_supply_nom"]  # 60°C — primary source
 T_SUPPLY_SRC1 = 60.0                # 60°C — secondary source
-P_REF_BAR = gp["P_nom_bar"]         # 6 bar, reference pressure at src0
+P_REF_BAR = gp["P_nom_bar"]         # 8 bar, reference pressure at src0
 
 Q_PEAK_W = Q_PEAK_W  # W per substation
 HLF = 1.10  # heat loss factor
@@ -147,7 +157,7 @@ src0_block = district.blocks[0 * district.rows + 0]
 gen_pos0   = (src0_block["x"] + src0_block["width"]  / 5,
               src0_block["y"] + src0_block["height"] / 5)
 
-# src1 — right-centre (col=5, row=2) — secondary CF-CT plant
+# src1 — right-centre (col=5, row=2) — secondary plant (scheduled CF-CT)
 src1_col   = int(COLS * 0.75)
 src1_row   = ROWS // 2
 src1_block = district.blocks[src1_col * district.rows + src1_row]
@@ -209,40 +219,23 @@ print(f"\nNodes: {len(node_rows)} "
 # ---------------------------------------------------------------------------
 # SECTION 6 — PIPE SIZING
 # ---------------------------------------------------------------------------
+# The network is sized as if src0 alone supplied the whole peak demand
+# (same rule as 3G_M_M_BASE, for TG comparability). src1 is OFF at night and
+# at weekends, so the hydraulic worst case (weekend morning peak) is
+# src0-only. src1 is connected as a point injection: its service pipe is
+# sized on the src1 nominal mass flow (Section 6bis).
+src0_gnode, src1_gnode = tnb.generator_nodes[0], tnb.generator_nodes[1]
 
-G_dir = nx.DiGraph()
-for node in dhn.nodes():
-    G_dir.add_node(node)
+# Nominal mass flows (also used in Section 6bis)
+M_FLOW_NOM_TOTAL  = round(N_SUB * Q_PEAK_W / (CP * DELTA_T), 3)
+M_FLOW_BASE_LOAD  = round(F_STEADY * M_FLOW_NOM_TOTAL, 3)
+SRC1_SUPPORT_FRAC = 0.15
+M_FLOW_NOM_SRC1   = round(SRC1_SUPPORT_FRAC * M_FLOW_BASE_LOAD, 3)
+Q_NOM_SRC1_W      = M_FLOW_NOM_SRC1 * CP * DELTA_T
 
-# Territory assignment: every node is attributed to its network-nearest
-# source. This partition drives both pipe orientation (below) AND the
-# nominal sizing of src1 (Section 6bis).
-closest_gen = {}
-for n in dhn.nodes():
-    min_d = math.inf
-    best_g = None
-    for g in tnb.generator_nodes:
-        try:
-            d = nx.shortest_path_length(dhn, g, n, weight="length")
-            if d < min_d:
-                min_d = d
-                best_g = g
-        except nx.NetworkXNoPath:
-            continue
-    closest_gen[n] = best_g
-
-for u, v in dhn.edges():
-    g_u = closest_gen[u]
-    g_v = closest_gen[v]
-
-    d_u = nx.shortest_path_length(dhn, g_u, u, weight="length") if g_u else 0
-    d_v = nx.shortest_path_length(dhn, g_v, v, weight="length") if g_v else 0
-
-    if d_u <= d_v:
-        G_dir.add_edge(u, v)
-    else:
-        G_dir.add_edge(v, u)
-
+# Orient the network from src0 via BFS — used ONLY for downstream load.
+# All edges of dhn (including loop-closing edges) are sized.
+G_dir   = nx.DiGraph(nx.bfs_tree(dhn, src0_gnode))
 sub_set = set(tnb.building_nodes)
 
 N_dhn = dhn.number_of_nodes()
@@ -251,8 +244,13 @@ L_dhn = E_dhn - N_dhn + 1
 print(f"\nDHN topology: N={N_dhn}, E={E_dhn}, L={L_dhn}, "
       f"is_meshed={not nx.is_tree(dhn)}")
 
+if dhn.degree(src1_gnode) != 1:
+    raise RuntimeError("src1 is expected to be a leaf of the DHN graph "
+                       "(single service pipe); revise the src1 sizing rule.")
+
 
 def downstream_sub_count(node):
+    """Substations reachable downstream from node (BFS orientation from src0)."""
     try:
         desc = nx.descendants(G_dir, node) | {node}
     except Exception:
@@ -263,15 +261,21 @@ def downstream_sub_count(node):
 PIPE_SIZING = {}
 
 for u, v in dhn.edges():
-    if G_dir.has_edge(u, v):
-        from_n, to_n = u, v
-    elif G_dir.has_edge(v, u):
-        from_n, to_n = v, u
+    if src1_gnode in (u, v):
+        # src1 service pipe: oriented in the injection direction and sized
+        # on the nominal src1 flow (it never carries demand-driven flow)
+        from_n = src1_gnode
+        to_n   = v if u == src1_gnode else u
+        Q      = Q_NOM_SRC1_W
     else:
-        from_n, to_n = u, v
-
-    n_down = max(downstream_sub_count(to_n), 1)
-    Q = n_down * Q_PEAK_W * HLF
+        if G_dir.has_edge(u, v):
+            from_n, to_n = u, v
+        elif G_dir.has_edge(v, u):
+            from_n, to_n = v, u
+        else:
+            from_n, to_n = u, v
+        n_down = max(downstream_sub_count(to_n), 1)
+        Q = n_down * Q_PEAK_W * HLF
     data = dhn.edges[u, v]
     Lp = round(data.get("length", 0.0), 2)
     e = select_dn(GEN, Q)
@@ -288,18 +292,8 @@ print(f"  Q_tot  = {N_SUB * Q_PEAK_W / 1e6:.2f} MW")
 # ---------------------------------------------------------------------------
 # SECTION 6bis — SECONDARY SOURCE (src1) SIZING + DISPATCH-COUPLED PROFILE
 # ---------------------------------------------------------------------------
-# The peak flow rate delivered by src1 is equal to 15% of the
-# flow rate to cover the network base load
-src0_gnode, src1_gnode = tnb.generator_nodes[0], tnb.generator_nodes[1]
-
-N_SUB_SRC1 = sum(1 for n in sub_set if closest_gen.get(n) == src1_gnode)
-N_SUB_SRC0 = N_SUB - N_SUB_SRC1
-
-M_FLOW_NOM_TOTAL = round(N_SUB * Q_PEAK_W / (CP * DELTA_T), 3)
-
-M_FLOW_BASE_LOAD = round(F_STEADY * M_FLOW_NOM_TOTAL, 3)
-SRC1_SUPPORT_FRAC = 0.15
-M_FLOW_NOM_SRC1 = round(SRC1_SUPPORT_FRAC * M_FLOW_BASE_LOAD, 3)
+# The nominal flow delivered by src1 (M_FLOW_NOM_SRC1, computed in Section 6)
+# is 15% of the flow needed to cover the network base load (F_STEADY).
 
 print(f"\nSecondary source sizing (src1, industrial waste heat, base-load coupled):")
 print(f"  Total network capacity: {M_FLOW_NOM_TOTAL} kg/s")
@@ -309,8 +303,6 @@ print(f"  Mass flow cap for src1 : {M_FLOW_NOM_SRC1} kg/s "
       f"{100*M_FLOW_NOM_SRC1/M_FLOW_NOM_TOTAL:.1f}% of total network capacity)")
 print(f"  Equivalent thermal power: {M_FLOW_NOM_SRC1 * CP * DELTA_T / 1e6:.2f} MW")
 print(f"  T_supply src1          : {T_SUPPLY_SRC1} °C (fixed)")
-
-MDOT_BYPASS_KGS = 0.0   # [kg/s]
 
 F_SHIFT_ON  = 1.00
 F_SHIFT_OFF = 0.00
@@ -333,18 +325,10 @@ for day in DAYS:
     else:
         SRC1_WEEKLY_SHAPE_POTENTIAL += SRC1_DAILY_SHAPE
 
-SRC1_WEEKLY_MDOT_POTENTIAL = [round(f * M_FLOW_NOM_SRC1, 4) for f in SRC1_WEEKLY_SHAPE_POTENTIAL]
-
-NETWORK_WEEKLY_MDOT_DEMAND = [round(f * M_FLOW_NOM_TOTAL, 4) for f in WEEKLY_SHAPE]
-
-SRC1_WEEKLY_MDOT = [
-    round(max(min(p, d), MDOT_BYPASS_KGS), 4)
-    for p, d in zip(SRC1_WEEKLY_MDOT_POTENTIAL, NETWORK_WEEKLY_MDOT_DEMAND)
-]
-
-n_curtailed = sum(1 for p, d in zip(SRC1_WEEKLY_MDOT_POTENTIAL, NETWORK_WEEKLY_MDOT_DEMAND) if p > d)
-print(f"  Heat-led operation with curtailment: {n_curtailed} / {N_WEEK} "
-      f"({100*n_curtailed/N_WEEK:.1f}% — available production > network demand)")
+# src1 schedule: constant nominal flow when ON, zero when OFF.
+# (During the ON window the network demand never drops below the base load,
+#  ~73 kg/s >> M_FLOW_NOM_SRC1, so no curtailment is ever needed.)
+SRC1_WEEKLY_MDOT = [round(f * M_FLOW_NOM_SRC1, 4) for f in SRC1_WEEKLY_SHAPE_POTENTIAL]
 
 SRC1_PROFILE_FILE = "src1_mdot_profile.csv"
 labels = timestep_labels()
