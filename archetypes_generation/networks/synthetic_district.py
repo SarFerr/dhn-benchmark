@@ -488,7 +488,7 @@ class ThermalNetworkBuilder:
 
         Parameters
         ----------
-        beta      : float >= 1 — flexibility factor (1.0 for TG family)
+        beta      : float >= 1 — flexibility factor
         delta_eps : float — fallback step size
         weight    : str   — physical length edge attribute
         """
