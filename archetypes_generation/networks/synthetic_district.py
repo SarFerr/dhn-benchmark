@@ -343,9 +343,8 @@ class ThermalNetworkBuilder:
 
     Workflow:
         1. build_routing_graph()         — project all nodes onto streets
-        2. constrained_steiner_tree()    — radial base topology (L=0)
-        3. add_mesh_layers()             — loop augmentation (L>0)
-        4. metrics() / plot()            — analysis and visualisation
+        2. constrained_steiner_tree()    — topology optimization
+        3. metrics() / plot()            — analysis and visualisation
 
     Parameters
     ----------
@@ -485,8 +484,7 @@ class ThermalNetworkBuilder:
                                   weight="length"):
         """
         Constrained Steiner tree (Algorithm 2, Vieth et al. 2025).
-        Produces a radial base topology with L=0 hydraulic loops.
-        For meshed topologies call add_mesh_layers() afterwards.
+        Produces a radial base topology with L hydraulic loops.
 
         Parameters
         ----------
