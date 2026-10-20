@@ -185,7 +185,7 @@ jupyter lab archetypes_generation/archetypes/3G_M_M_BASE/model_pydhn.ipynb
 #    → writes archetypes_generation/results/3G_M_M_BASE_results.xlsx
 
 # 4. Post-process all archetypes and produce the paper figures
-jupyter lab archetypes_generation/results/archetype_results.ipynb
+jupyter lab archetypes_generation/results/archetype_results_test.ipynb
 ```
 
 All generators are deterministic, with fixed random seeds. The physical parameters live only in `constants.py` and `pipe_system.py`. To change an assumption, edit it there, then run `export_constants.py` and regenerate the archetypes.
