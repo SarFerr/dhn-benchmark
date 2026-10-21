@@ -10,6 +10,20 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\archetypes_generation\archetypes\4G_M_M_BASE\src1_mdot_profile.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\archetypes_generation\archetypes\5G_M_M_BASE\prosumer_production_profile.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\archetypes_generation\data\demand_profile.csv">
           <value>
             <Attribute>
