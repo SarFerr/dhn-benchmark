@@ -75,8 +75,9 @@ from archetypes_generation.demand_profile import (
 from archetypes_generation.pipe_system import select_dn, pipe_record, write_pipes_csv, PipeSizingError
 GEN = "4G"
 
-sys.path.insert(0, THIS_DIR)   # synthetic_district.py lives next to this script
-from synthetic_district import (
+import archetypes_generation.networks.methodology_II as m2
+importlib.reload(m2)
+from archetypes_generation.networks.methodology_II import (
     DistrictGenerator,
     StreetGraphBuilder,
     ThermalNetworkBuilder,
@@ -410,4 +411,4 @@ with open(os.path.join(OUT_DIR, "incidence_matrix.csv"), "w", newline="") as f:
         w.writerow([node] + [-1 if u == i else (1 if v == i else 0)
                              for u, v in edge_ends])
 
-print(f"  incidence_matrix.csv → {len(node_ids)} x {len(edge_ids)}")
+print(f"  incidence_matrix.csv → {len(node_ids)} x {len(edge_ids)}")

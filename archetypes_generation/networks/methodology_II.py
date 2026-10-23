@@ -1,14 +1,38 @@
 #
-# synthetic_district.py
+# methodology_II.py
 #
-# SYNTHETIC URBAN DISTRICT GENERATOR — DHN BENCHMARK
+# METHODOLOGY II — ALGORITHMIC GENERATION OF SYNTHETIC DHN BENCHMARK NETWORKS
 #
-# Classes:
-#   DistrictGenerator      — synthetic urban district with centreline streets
-#   StreetGraphBuilder     — builds and validates the support street graph
-#   ThermalNetworkBuilder  — DHN topology via constrained Steiner tree
+# In the spirit of the ACTIVSg and SimBench power-system benchmarks, a network is generated
+# in three steps:
+#   Step 1  synthetic urban district: blocks, centreline streets and substations
+#           (DistrictGenerator)
+#   Step 2  support street graph (StreetGraphBuilder)
+#   Step 3  DHN layout routed along the streets: the substations and the source(s) are
+#           projected onto the street graph and connected by a constrained Steiner tree
+#           (ThermalNetworkBuilder, Algorithm 2 of Vieth et al. 2025)
 #
-
+# Helpers for exporting the generated network:
+#   extract_nodes(tnb, dhn)                      node table and graph-node -> node-id map
+#   downstream_substations(tnb, dhn, source)     substations downstream of every pipe
+#
+# Example
+#   from archetypes_generation.networks.methodology_II import (
+#       DistrictGenerator, StreetGraphBuilder, ThermalNetworkBuilder,
+#       extract_nodes, downstream_substations)
+#
+#   district = DistrictGenerator(width=1200, height=800, rows=5, cols=7,
+#                                n_substations=100, seed=42).generate()
+#   streets  = StreetGraphBuilder(district).build()
+#   tnb      = ThermalNetworkBuilder(streets, district, generator_pos=(50, 40))
+#   tnb.build_routing_graph()
+#   dhn      = tnb.constrained_steiner_tree(beta=1.0)
+#   node_rows, node_id = extract_nodes(tnb, dhn)
+#   pipes    = downstream_substations(tnb, dhn)     # [(from, to, n_downstream, length), ...]
+#
+# Note: the random generator of DistrictGenerator is the global `random` module, seeded
+# with `seed` at construction, so that a given seed always gives the same district.
+#
 import math
 import random
 import networkx as nx
@@ -246,22 +270,6 @@ class DistrictGenerator:
         if show:
             plt.tight_layout()
             plt.show()
-
-
-if __name__ == "__main__":
-
-    # --- District ---
-    district = DistrictGenerator(
-        width=1200, height=800,
-        rows=5, cols=7,
-        street_width=15,
-        n_substations=100,
-        block_variation=0.25,
-        perturbation=7,
-        seed=42
-    )
-    district.generate()
-    district.plot_district()
 
 
 # =====================================================================
@@ -656,7 +664,7 @@ class ThermalNetworkBuilder:
 
     # ------------------------------------------------------------------
     def plot(self, dhn=None, ax=None, show=True,
-             with_district=True, title="3G_M_M_BASE"):
+             with_district=True, title="DHN topology"):
 
         dhn = dhn if dhn is not None else self.dhn
 
@@ -702,3 +710,107 @@ class ThermalNetworkBuilder:
             plt.tight_layout(); plt.show()
 
         return ax
+
+
+# =====================================================================
+# 4. EXPORT HELPERS
+# =====================================================================
+def extract_nodes(tnb, dhn, digits=2, source_ids=None):
+    """Node table of a generated network.
+
+    Sources come first, then the other nodes of `dhn` in graph order: substations are named
+    sub<k> (k = index in district.buildings), junctions jun0, jun1, ...
+
+    Parameters
+    ----------
+    tnb        : ThermalNetworkBuilder used to generate `dhn`
+    dhn        : nx.Graph — the network topology
+    digits     : rounding of the coordinates [m]
+    source_ids : list of ids for the sources; default "src" for a single source,
+                 "src0", "src1", ... for several sources
+
+    Returns
+    -------
+    node_rows : list of (node_id, node_type, x_m, y_m)
+    node_id   : dict graph node -> node_id
+    """
+    rou = tnb.rou
+    if source_ids is None:
+        n_src = len(tnb.generator_nodes)
+        source_ids = ["src"] if n_src == 1 else [f"src{k}" for k in range(n_src)]
+    node_id, node_rows, idx_j = {}, [], 0
+    for gnode, nid in zip(tnb.generator_nodes, source_ids):
+        pos = rou.nodes[gnode]["pos"]
+        node_id[gnode] = nid
+        node_rows.append((nid, "source", round(pos[0], digits), round(pos[1], digits)))
+    for n in dhn.nodes():
+        if n in node_id:
+            continue
+        pos = rou.nodes[n]["pos"]
+        if rou.nodes[n].get("kind", "junction") == "substation":
+            nid, ntype = f"sub{tnb.building_nodes.index(n)}", "substation"
+        else:
+            nid, ntype = f"jun{idx_j}", "junction"
+            idx_j += 1
+        node_id[n] = nid
+        node_rows.append((nid, ntype, round(pos[0], digits), round(pos[1], digits)))
+    return node_rows, node_id
+
+
+def downstream_substations(tnb, dhn, source=None):
+    """Orientation and downstream load of every pipe of a generated network.
+
+    The network is oriented from `source` (default: the first source) with a breadth-first
+    search; each pipe is oriented along the search and associated with the number of
+    substations downstream of it (at least 1, also for loop-closing pipes).
+
+    Returns a list of (from_node, to_node, n_downstream, length_m), in the order of
+    dhn.edges(), with graph nodes as returned by the ThermalNetworkBuilder.
+    """
+    source  = tnb.generator_nodes[0] if source is None else source
+    G_dir   = nx.DiGraph(nx.bfs_tree(dhn, source))
+    sub_set = set(tnb.building_nodes)
+
+    def n_down(node):
+        try:
+            desc = nx.descendants(G_dir, node) | {node}
+        except Exception:
+            desc = {node}
+        return sum(1 for n in desc if n in sub_set)
+
+    out = []
+    for u, v in dhn.edges():
+        if G_dir.has_edge(u, v):
+            a, b = u, v
+        elif G_dir.has_edge(v, u):
+            a, b = v, u
+        else:
+            a, b = u, v
+        out.append((a, b, max(n_down(b), 1), dhn.edges[u, v].get("length", 0.0)))
+    return out
+
+
+# =====================================================================
+# EXAMPLE
+# =====================================================================
+if __name__ == "__main__":
+
+    # --- District ---
+    district = DistrictGenerator(
+        width=1200, height=800,
+        rows=5, cols=7,
+        street_width=15,
+        n_substations=100,
+        block_variation=0.25,
+        perturbation=7,
+        seed=42
+    )
+    district.generate()
+    district.plot_district()
+
+    streets = StreetGraphBuilder(district).build()
+    tnb = ThermalNetworkBuilder(streets, district, generator_pos=(50, 40))
+    tnb.build_routing_graph()
+    dhn = tnb.constrained_steiner_tree(beta=1.0)
+    print(tnb.metrics(dhn))
+    tnb.plot(dhn)

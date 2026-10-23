@@ -53,12 +53,12 @@ A single archetype can serve more than one validation class. For example, `3G_M_
 | `5G_M_M` | TG-5 | 90 + 10 prosumers | 221 | 224 | 8.6 | Methodology II | 20 °C, ΔT 5 K, 6 bar, **bidirectional** |
 | `3G_M_L` | CS-L | 400 | 931 | 944 | 62.7 | Methodology II | 80 °C, ΔT 30 K, 10 bar |
 
-**Methodology I: purpose-driven design** (THV archetypes). Networks are built by hand from prescribed rules, in the spirit of the IEEE test feeders. Each has exactly 10 substations, pipe lengths drawn from U[100, 200] m (seed 42), and a prescribed topology:
+**Methodology I: purpose-driven design** (THV archetypes, `networks/methodology_I.py`). Networks are built from prescribed rules, in the spirit of the IEEE test feeders. Each has exactly 10 substations, pipe lengths drawn from U[100, 200] m (seed 42), and a prescribed topology:
 - radial: binary tree of depth 3, no loops;
 - ring: one closed main loop;
 - meshed: 8 independent loops, a deliberate stress test.
 
-**Methodology II: algorithmic generation** (TG and CS archetypes). In the spirit of ACTIVSg and SimBench, these are built in three steps: a synthetic urban district, its street graph, and the DHN layout routed along the streets as a constrained Steiner tree (`networks/synthetic_district.py`).
+**Methodology II: algorithmic generation** (TG and CS archetypes). In the spirit of ACTIVSg and SimBench, these are built in three steps: a synthetic urban district, its street graph, and the DHN layout routed along the streets as a constrained Steiner tree (`networks/methodology_II.py`).
 
 **Common assumptions.**
 - **Demand:** every substation follows the same normalised daily profile (175 kW peak), at 10-minute resolution over one week (1008 steps).
@@ -83,9 +83,10 @@ dhn-benchmark/
     │   ├── parameters.csv         # human-readable table of every parameter used (fluid, soil, materials, catalogues)
     │   └── demand_profile.csv     # weekly demand time series shared by all archetypes
     │
-    ├── networks/                  # GENERATORS: one script per archetype
-    │   ├── synthetic_district.py  # district → street graph → Steiner-tree layout (Methodology II)
-    │   ├── 3G_R_S_BASE.py
+    ├── networks/                  # GENERATORS
+    │   ├── methodology_I.py       # Methodology I: rule-based radial / ring / meshed networks (reusable)
+    │   ├── methodology_II.py      # Methodology II: district → street graph → Steiner-tree layout (reusable)
+    │   ├── 3G_R_S_BASE.py         # one script per archetype, built on the two methodologies
     │   ├── ...
     │   └── 5G_M_M_BASE.py
     │
@@ -104,7 +105,7 @@ dhn-benchmark/
         └── figures/
 ```
 
-If you only want to **use** the benchmark in your own tool, the `archetypes/` folder is all you need. `networks/` is there to **reproduce or extend** it.
+If you only want to **use** the benchmark in your own tool, the `archetypes/` folder is all you need. `networks/` is there to **reproduce or extend** it: `methodology_I.py` and `methodology_II.py` can be imported to build new networks with the same methods (see the example at the top of each file), and the archetype scripts show how they are used for the benchmark.
 
 ---
 
