@@ -54,19 +54,28 @@ def catalogue(gen):
 
 
 # ---------------------------------------------------------------------------
-# Sizing: smallest DN with v <= v_max. NO silent fallback to the largest DN.
+# Sizing: smallest DN with v <= v_lim (default v_max). NO silent fallback to the largest DN.
 # ---------------------------------------------------------------------------
-def select_dn(gen, Q_w):
+def select_dn(gen, Q_w, v_lim=None):
+    """Smallest catalogue DN whose velocity at the design load Q_w does not exceed v_lim.
+
+    v_lim : sizing velocity limit [m/s]; None = GEN_OPERATING[gen]["v_max"] (default).
+            A lower value (e.g. a design velocity) gives larger diameters and lower
+            specific pressure losses. It cannot exceed v_max.
+    """
     gp = GEN_OPERATING[gen]
+    v_lim = gp["v_max"] if v_lim is None else v_lim
+    if v_lim > gp["v_max"]:
+        raise ValueError(f"[{gen}] v_lim = {v_lim} m/s exceeds v_max = {gp['v_max']} m/s.")
     mdot = Q_w / (gp["cp"] * gp["delta_T_nom"])
     for e in catalogue(gen):
         v = mdot / (gp["rho"] * math.pi * e["d_i"] ** 2 / 4.0)
-        if v <= gp["v_max"]:
+        if v <= v_lim:
             return dict(e, mdot=round(mdot, 4), velocity=round(v, 3))
-    d_req = math.sqrt(4 * mdot / (math.pi * gp["rho"] * gp["v_max"]))
+    d_req = math.sqrt(4 * mdot / (math.pi * gp["rho"] * v_lim))
     raise PipeSizingError(
         f"[{gen}] Q = {Q_w/1e6:.2f} MW needs d_i >= {d_req*1000:.0f} mm "
-        f"(v_max = {gp['v_max']} m/s); largest catalogue d_i = "
+        f"(v_lim = {v_lim} m/s); largest catalogue d_i = "
         f"{catalogue(gen)[-1]['d_i']*1000:.0f} mm. Extend the catalogue.")
 
 

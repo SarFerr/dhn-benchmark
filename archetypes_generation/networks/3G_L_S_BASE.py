@@ -2,10 +2,13 @@
 #
 # Benchmark archetype: 3GDH, Ring, Small
 #
-# Methodology I — Purpose-driven design (methodology_I.py)
-#   Rule 1: exactly 10 substations
-#   Rule 2: pipe lengths sampled from U[100, 200] m, seed=42
-#   Rule 3: ring topology, single closed main loop (L=1)
+# Methodology I — Purpose-driven design (methodology_I.py, build_from_coordinates)
+#   Rule 1: exactly 10 substations in a 500 m x 500 m footprint, source in the north-west
+#           corner; node coordinates prescribed, pipe length = euclidean distance
+#   Rule 2: nested topologies on a common radial base — ring: radial base + closing pipe c-k (L = 1)
+#   Rule 3: pipe sizing — "tree" design loads (design_loads) and DN with v <= V_LIM = 1.5 m/s
+#   Rule 4: hydraulic feasibility — positive differential pressure at every substation with
+#           the 10 bar pump differential (verified with the pydhn model of the archetype)
 #
 # Outputs (archetypes_generation/archetypes/3G_L_S_BASE/):
 #   nodes.csv             — node table with boundary conditions (supply + return)
@@ -46,52 +49,49 @@ from archetypes_generation.constants import GEN_OPERATING
 from archetypes_generation.demand_profile import Q_PEAK_W
 from archetypes_generation.plotting import plot_topology
 from archetypes_generation.pipe_system import select_dn, pipe_record, write_pipes_csv
-from archetypes_generation.networks.methodology_I import build_network, design_loads, E, W, S, N
+from archetypes_generation.networks.methodology_I import build_from_coordinates, design_loads, E, W, S, N
 
 GEN      = "3G"
 
 # ---------------------------------------------------------------------------
 # SECTION 1 — LAYOUT
-# Ring: 9 pipes forming one closed loop, 2 substations on 5 of its junctions (L = 1).
-# Lengths sampled in the order of EDGE_LIST; the layout is a schematic drawing
-# (length_mode = "sampled": the pipe lengths are the sampled values).
+# Common radial base of the three THV archetypes (3G_R_S, 3G_L_S, 3G_M_S): two feeders along
+# the perimeter of a 500 m x 500 m square, source at the north-west corner.
+# Coordinates in metres, origin at the source, x to the east, y to the SOUTH.
+# Pipe length = euclidean distance between the end nodes.
+# Ring: radial base + one closing pipe between the ends of the two feeders (L = 1).
 # ---------------------------------------------------------------------------
-SEED     = 42
-L_RANGE  = (100.0, 200.0)          # m
-
-EDGE_LIST = [
-    # ring — 9 pipes forming the closed loop
-    ("src", "a"), ("a", "b"), ("b", "c"), ("c", "d"), ("d", "e"),
-    ("e", "f"), ("f", "g"), ("g", "h"), ("h", "src"),
-    # radial branches — 2 substations per junction
-    ("a", "sub1"), ("a", "sub2"), ("b", "sub3"), ("b", "sub4"),
-    ("d", "sub5"), ("d", "sub6"), ("f", "sub7"), ("f", "sub8"),
-    ("h", "sub9"), ("h", "sub10"),
-]
-# Direction of the pipes that reach a new node (x to the east, y to the south)
-DIRECTIONS = {
-    ("src", "a"): S, ("a", "b"): S, ("b", "c"): S, ("c", "d"): E, ("d", "e"): E,
-    ("e", "f"): N, ("f", "g"): N, ("g", "h"): W,
-    ("a", "sub1"): W, ("a", "sub2"): E, ("b", "sub3"): W, ("b", "sub4"): E,
-    ("d", "sub5"): N, ("d", "sub6"): S, ("f", "sub7"): W, ("f", "sub8"): E,
-    ("h", "sub9"): N, ("h", "sub10"): S,
+POSITIONS = {
+    "src": (0, 0),
+    # north feeder (y = 0)
+    "a": (200, 0),   "b": (400, 0),   "c": (500, 0),
+    # west feeder (x = 0) and south side (y = 500)
+    "d": (0, 160),   "e": (0, 330),   "f": (0, 500),
+    "g": (120, 500), "h": (300, 500), "i": (420, 500), "j": (500, 500), "k": (500, 450),
+    # substations — 20 m service pipes
+    "sub1": (200, 20),  "sub2": (400, -20), "sub3": (520, 0),    "sub4": (-20, 160),
+    "sub5": (20, 330),  "sub6": (-20, 500), "sub7": (120, 480),  "sub8": (300, 520),
+    "sub9": (420, 520), "sub10": (520, 450),
 }
-# Rectangular drawing: g and h on the line of the source, h below d
-ALIGN = [("g", "y", "src"), ("h", "x", "d"), ("h", "y", "src")]
+EDGE_LIST = [   # radial base: (from_node, to_node) = flow direction of the supply pipe
+    ("src", "a"), ("a", "sub1"), ("a", "b"), ("b", "sub2"), ("b", "c"), ("c", "sub3"),
+    ("src", "d"), ("d", "sub4"), ("d", "e"), ("e", "sub5"), ("e", "f"), ("f", "sub6"),
+    ("f", "g"), ("g", "sub7"), ("g", "h"), ("h", "sub8"), ("h", "i"), ("i", "sub9"),
+    ("i", "j"), ("j", "k"), ("k", "sub10"),
+]
+RING_CLOSURE = ("c", "k")           # closes the perimeter along the east side (x = 500)
 
-NET = build_network(EDGE_LIST, DIRECTIONS, align=ALIGN, length_mode="sampled",
-                    length_range=L_RANGE, seed=SEED, expected_loops=1)
+NET = build_from_coordinates(EDGE_LIST, POSITIONS, topology="ring",
+                             ring_closure=RING_CLOSURE,
+                             expected_loops=1)
 NODES, EDGES, PIPE_L = NET["nodes"], NET["edges"], NET["lengths"]
 
-print("Sampled lengths [m]:")
-for e, l in NET["sampled"].items():
-    print(f"  {e[0]:>4} -> {e[1]:<6} {l:7.1f}")
-print("Lengths set by the geometry [m]:")
-for e, l in NET["geometric"].items():
-    print(f"  {e[0]:>4} -> {e[1]:<6} {l:7.1f}")
+print("Pipe lengths [m]:")
+for (u, v), l in PIPE_L.items():
+    print(f"  {u:>4} -> {v:<6} {l:7.1f}{'   (added)' if (u, v) in NET['added'] else ''}")
 
 # ---------------------------------------------------------------------------
-# SECTION 2 — TOPOLOGY CHECKS (connectivity and L are also checked in build_network)
+# SECTION 2 — TOPOLOGY CHECKS (connectivity and L are also checked in build_from_coordinates)
 # ---------------------------------------------------------------------------
 N_ = len(NODES)
 E_ = len(EDGES)
@@ -134,7 +134,6 @@ KPIS = {
     "avg_path_hops"    : round(nx.average_shortest_path_length(G_nx), 3),
     "total_length_m"   : round(sum(PIPE_L.values()), 1),
     "total_length_km"  : round(sum(PIPE_L.values()) / 1000, 3),
-    "seed"             : SEED,
 }
 
 print("\nKPIs:")
@@ -143,8 +142,10 @@ for k, v in KPIS.items():
 
 # ---------------------------------------------------------------------------
 # SECTION 4 — PIPE SIZING
-# radial: load of the substations downstream; looped: half of the total load for the
-# distribution pipes, one substation for the service pipes (design_loads)
+# "tree" design loads (design_loads): every pipe of the radial base carries the load of the
+# substations downstream of it (pieces of a pipe split by a chord inherit it); the closing pipe
+# and the chords are sized on ADDED_SUBS substations. DN = smallest catalogue size with
+# v <= V_LIM at the design mass flow (select_dn).
 # ---------------------------------------------------------------------------
 gp       = GEN_OPERATING["3G"]
 DELTA_T  = gp["delta_T_nom"]
@@ -152,29 +153,34 @@ T_SUPPLY = gp["T_supply_nom"]
 P_NOM    = gp["P_nom_bar"]
 
 HEAT_LOSS_FACTOR = 1.05
-LOADS       = design_loads(NET, Q_PEAK_W, HEAT_LOSS_FACTOR)
+SIZING_METHOD    = "tree"
+ADDED_SUBS       = 2
+V_LIM            = 1.5             # m/s, sizing velocity (v_max = 2.5 m/s)
+
+LOADS       = design_loads(NET, Q_PEAK_W, HEAT_LOSS_FACTOR, method=SIZING_METHOD, added_subs=ADDED_SUBS)
 SUBSTATIONS = {n[0] for n in NODES if n[1] == "substation"}
+ADDED       = set(NET["added"])
 
 PIPE_SIZING = {}
 
 print(f"\n{'pipe_id':<14} {'from':<8} {'to':<10} "
-      f"{'L m':>7} {'Q kW':>7} {'DN':>5} {'d_i mm':>8}  type")
-print("-" * 80)
+      f"{'L m':>7} {'Q kW':>7} {'DN':>5} {'d_i mm':>8} {'v m/s':>6}  type")
+print("-" * 88)
 
 for u, v in EDGES:
     pid   = f"{u}_{v}"
     Lp    = PIPE_L[(u, v)]
     Q     = LOADS[(u, v)]
-    ptype = "service" if v in SUBSTATIONS else "distribution"
-    e     = select_dn(GEN, Q)
+    ptype = "service" if v in SUBSTATIONS else ("added" if (u, v) in ADDED else "distribution")
+    e     = select_dn(GEN, Q, v_lim=V_LIM)
     PIPE_SIZING[pid] = pipe_record(GEN, e, u, v, Lp)
     print(f"{pid:<14} {u:<8} {v:<10} "
-          f"{Lp:>7.1f} {Q / 1000:>7.1f} {e['DN']:>5} {e['d_i'] * 1000:>8.1f}  [{ptype}]")
+          f"{Lp:>7.1f} {Q / 1000:>7.1f} {e['DN']:>5} {e['d_i'] * 1000:>8.1f} {e['velocity']:>6.2f}  [{ptype}]")
 
-print("-" * 80)
+print("-" * 88)
 L_tot = sum(d["length_m"] for d in PIPE_SIZING.values())
-print(f"  L_tot      = {L_tot / 1000:.2f} km   target: 1–5 km ✓")
-print(f"  Q_peak_tot = {n_sub * Q_PEAK_W / 1e6:.2f} MW    target: < 5 MW ✓")
+print(f"  L_tot      = {L_tot / 1000:.2f} km   target: 1–5 km {'✓' if 1e3 <= L_tot <= 5e3 else '✗'}")
+print(f"  Q_peak_tot = {n_sub * Q_PEAK_W / 1e6:.2f} MW    target: < 5 MW {'✓' if n_sub * Q_PEAK_W < 5e6 else '✗'}")
 
 # ---------------------------------------------------------------------------
 # SECTION 5 — CSV EXPORT
