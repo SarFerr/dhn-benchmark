@@ -7,8 +7,6 @@
 #           corner; node coordinates prescribed, pipe length = euclidean distance
 #   Rule 2: nested topologies on a common radial base — ring: radial base + closing pipe c-k (L = 1)
 #   Rule 3: pipe sizing — "tree" design loads (design_loads) and DN with v <= V_LIM = 1.5 m/s
-#   Rule 4: hydraulic feasibility — positive differential pressure at every substation with
-#           the 10 bar pump differential (verified with the pydhn model of the archetype)
 #
 # Outputs (archetypes_generation/archetypes/3G_L_S_BASE/):
 #   nodes.csv             — node table with boundary conditions (supply + return)
