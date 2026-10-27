@@ -2,10 +2,20 @@
 #
 # Benchmark archetype: 5GDHC, Meshed, Medium
 #
-# Methodology II — Algorithmic generation
-#   Step 1: Synthetic urban district
-#   Step 2: Street graph
-#   Step 3: Constrained Steiner tree beta=1.00
+# Description
+#   Builds the 5G_M_M network with Methodology II (algorithmic generation, methodology_II.py)
+#   on the same synthetic district as 3G_M_M (same seed, footprint and beta), with one
+#   centralised backup source and 10 prosumers that inject heat into the loop. It defines the
+#   prosumer production profile, sizes the pipes with the N-1 criterion on the net flow and
+#   exports the simulation-ready files. The same inputs and the same seed give the same network.
+#
+# Procedure (Methodology II)
+#   Steps 1-2  District synthesis and building allocation   DistrictGenerator, StreetGraphBuilder
+#   Prosumers  Selection of the 10 prosumer buildings        deterministic, one per zone of the footprint
+#   Step 3     Network topology, constrained Steiner tree   ThermalNetworkBuilder (beta = 1.00)
+#   Step 4     Pipe sizing on the N-1 design flow           n1_design_flows, select_dn
+#   Export     nodes.csv, pipes.csv, prosumer_production_profile.csv, pipe_design_flows.csv,
+#              topology.png, incidence_matrix.csv
 #
 # Operating conditions (5GDH):
 #   Control        : VF-CT (variable flow, constant temperature) + prosumership
@@ -21,7 +31,7 @@
 #     of the base load of the pure consumers (F_STEADY of the peak).
 #     The source technology is deliberately not specified (waste heat,
 #     storage-backed heat pump, ...).
-#   SECONDARY source — ONE CENTRALISED plant at the TG-3 position.
+#   SECONDARY source — ONE CENTRALISED plant at the 3G_M_M position.
 #    It acts as slack in the simulation: it covers the morning peak and the
 #    share of the base load not covered by the prosumers (1 - BASE_SHARE).
 #    It never has to absorb a prosumer surplus (BASE_SHARE < 1).
@@ -33,8 +43,17 @@
 #   N_prosumer_src : 10 (10% of substations, spatially distributed)
 #   Q_peak_sub : 175 kW/substation (uniform, base scenario)
 #
-# Outputs:
-#   nodes.csv, pipes.csv, topology.png, prosumer_production_profile.csv
+# Outputs (archetypes_generation/archetypes/5G_M_M_BASE/):
+#   nodes.csv                       - node table with boundary conditions
+#   pipes.csv                       - pipe table with all modelling parameters
+#   prosumer_production_profile.csv - weekly heat injection profile of each prosumer
+#   prosumer_profile_preview.png    - plot of the typical day of the profile
+#   pipe_design_flows.csv           - N-1 design flow, velocity and DN of every pipe
+#   topology.png                    - network topology plot
+#   incidence_matrix.csv            - node-pipe incidence matrix
+#
+# Usage:
+#   python archetypes_generation/networks/5G_M_M_BASE.py
 
 import os
 import sys
@@ -44,6 +63,7 @@ import importlib
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import networkx as nx
+import numpy as np
 
 
 # ---------------------------------------------------------------------------
@@ -65,7 +85,7 @@ from archetypes_generation.demand_profile import (
 )
 
 from archetypes_generation.pipe_system import (
-    select_dn, pipe_record, write_pipes_csv, orient_from_sources, PipeSizingError,
+    select_dn, pipe_record, write_pipes_csv,
 )
 
 GEN = "5G"
@@ -76,13 +96,17 @@ from archetypes_generation.networks.methodology_II import (
     DistrictGenerator,
     StreetGraphBuilder,
     ThermalNetworkBuilder,
+    n1_design_flows,
 )
 
 # ---------------------------------------------------------------------------
 # SECTION 1 — DESIGN PARAMETERS
+# Function: all inputs of the archetype in one place (district, constrained Steiner factor,
+# prosumer settings, sizing case, 5GDHC operating parameters from constants.GEN_OPERATING).
+# Call: edit the values here only; the following sections read them.
 # ---------------------------------------------------------------------------
 
-# District — identical to TG-3/TG-4 for topology comparability
+# District — identical to 3G_M_M for topology comparability
 SEED = 42
 WIDTH, HEIGHT = 1200, 800
 ROWS, COLS = 5, 7
@@ -107,7 +131,6 @@ SIZING_CASE = "daily_envelope"  # "daily_envelope" | "central_only"
 
 # 5GDHC operating parameters
 gp = GEN_OPERATING["5G"]
-RHO = gp["rho"]
 CP = gp["cp"]
 DELTA_T = gp["delta_T_nom"]
 V_MAX = gp["v_max"]
@@ -124,8 +147,11 @@ print("=" * 60)
 
 # ---------------------------------------------------------------------------
 # SECTION 2 — DISTRICT GENERATION
+# Function: Methodology II, Steps 1-2. DistrictGenerator creates the block grid and distributes
+# the substations on the block frontages, with the seed above.
+# Call: DistrictGenerator(...).generate() returns the district object.
 # ---------------------------------------------------------------------------
-print("\nStep 1 — District generation (seed=42, identical to TG-3/TG-4)...")
+print("\nStep 1 — District generation (seed=42, identical to 3G_M_M)...")
 district = DistrictGenerator(
     width=WIDTH, height=HEIGHT,
     rows=ROWS,   cols=COLS,
@@ -142,6 +168,9 @@ print(f"  Substations : {N_SUB}")
 
 # ---------------------------------------------------------------------------
 # SECTION 3 — STREET GRAPH
+# Function: StreetGraphBuilder turns the street centrelines of the district into the weighted
+# graph on which the network is routed.
+# Call: StreetGraphBuilder(district).build() returns the street graph.
 # ---------------------------------------------------------------------------
 print("\nStep 2 — Street graph...")
 street_graph = StreetGraphBuilder(district).build()
@@ -151,6 +180,9 @@ print(f"  Nodes: {street_graph.number_of_nodes()}, "
 
 # ---------------------------------------------------------------------------
 # SECTION 4 — SELECTION OF THE DECENTRALISED SOURCE BUILDINGS
+# Function: chooses which substations are prosumers (see the description below).
+# Call: spatial_zone_centroids(...) gives the zone centroids, pick_buildings(...) the building ids;
+# the result is the set prosumer_src_set.
 #
 # Deterministic, independent of the random seed: the footprint is divided into
 # zones and the free building nearest to each zone centroid is selected.
@@ -194,9 +226,12 @@ print(
 
 # ---------------------------------------------------------------------------
 # SECTION 5 — NETWORK TOPOLOGY
+# Function: Methodology II, Step 3. Places the central source and grows the network with the
+# constrained Steiner algorithm; prosumers are ordinary substations of the same graph.
+# Call: ThermalNetworkBuilder(...), build_routing_graph(), constrained_steiner_tree(beta).
 # One central source (the only generator of the Steiner construction).
 # Decentralised sources are substations already in the terminal set,
-# distinguished only in the CSV (same graph as TG-3).
+# distinguished only in the CSV (same graph as 3G_M_M).
 # ---------------------------------------------------------------------------
 print(f"\nStep 3 — Constrained Steiner tree (β={BETA}, one central source)...")
 
@@ -210,12 +245,15 @@ tnb.build_routing_graph()
 dhn = tnb.constrained_steiner_tree(beta=BETA)
 
 m = tnb.metrics(dhn)
-print(f"\nTopological metrics:")
+print("\nTopological metrics:")
 for k, v in m.items():
     print(f"  {k:<15} {v}")
 
 # ---------------------------------------------------------------------------
 # SECTION 6 — CONNECTIVITY CHECK
+# Function: verifies that every node is reachable from the central source and that the prosumers
+# belong to the network.
+# Call: plain asserts; the script stops otherwise.
 # ---------------------------------------------------------------------------
 print("\nConnectivity check (central source → all nodes)...")
 g0 = tnb.generator_nodes[0]
@@ -231,6 +269,8 @@ for n, bid in bid_of.items():
 
 # ---------------------------------------------------------------------------
 # SECTION 7 — NODE EXTRACTION
+# Function: converts the graph nodes into the node table (source, prosumers, consumers, junctions).
+# Call: builds node_rows and node_id_map (graph node -> node id used in the pipe ids).
 # ---------------------------------------------------------------------------
 node_id_map = {}
 node_rows = []  # (nid, ntype, x, y, building_id)
@@ -264,6 +304,9 @@ print(f"\nNodes: {len(node_rows)} (1 central source + {n_pro} prosumers + "
 
 # ---------------------------------------------------------------------------
 # SECTION 8 — PROSUMER PRODUCTION PROFILE (BASE scenario)
+# Function: defines the weekly heat-injection profile of the prosumers (heating-day plateau with
+# smooth ramps), sizes their rating and prints an energy budget of the loop.
+# Call: runs at import; writes prosumer_production_profile.csv and prosumer_profile_preview.png.
 # ONE profile, built ad hoc to cover the base load of the loop: the same for the
 # N_PROSUMER_SRC prosumers, defined on one day and repeated over the 7 days
 # exactly like the demand profile. No stochastic component.
@@ -311,7 +354,7 @@ Q_max = max(PROSUMER_WEEKLY_Q)
 Q_mean = sum(PROSUMER_WEEKLY_Q) / N_WEEK
 n_active = sum(1 for q in PROSUMER_WEEKLY_Q if q > 0)
 
-print(f"\nProsumer production profile (BASE — winter week, base-load):")
+print("\nProsumer production profile (BASE — winter week, base-load):")
 print(f"  Plateau {BASE_ON_H:.0f}:00-{BASE_OFF_H:.0f}:00, ramps {BASE_RAMP_H * 60:.0f} min")
 print(f"  Q_prosumer_rated = {Q_PROSUMER_HEAT_W / 1e3:.0f} kW per prosumer "
       f"(own base load {Q_OWN_BASE_W / 1e3:.1f} kW + surplus "
@@ -393,60 +436,38 @@ fig.savefig(os.path.join(OUT_DIR, "prosumer_profile_preview.png"), dpi=150)
 plt.close(fig)
 
 # ---------------------------------------------------------------------------
-# SECTION 9 — PIPE SIZING
+# SECTION 9 — PIPE SIZING (N-1)
+# Function: Methodology II, Step 4. Sizes every pipe on the N-1 design flow of the loop, taking the
+# net flow (demand minus prosumer injection) into account.
+# Call: n1_design_flows(dhn, sources, DEMAND, INJECTION) gives (from, to, Q, length, in_loop) per pipe;
+# select_dn picks the smallest DN with v <= v_max (Table 1); pipe_record builds the pipe row.
 # Flow in the pipe feeding node v (central source = slack), at timestep t:
 #       Q_t(v) = max( | sum over the subtree of v of (demand - injection) | ,
 #                     demand(v), injection(v) )
-# Design flow = maximum over the day (SIZING_CASE; the profiles repeat every day).
-# Loop-closing edges take the
-# smaller design flow of their two end nodes.
+# Design flow = maximum over the day (SIZING_CASE; the profiles repeat every day) and over
+# the intact network and every single-pipe outage (n1_design_flows, Methodology II Step 4).
 # ---------------------------------------------------------------------------
 sub_nodes = set(tnb.building_nodes)
-T_dir = orient_from_sources(dhn, tnb.generator_nodes)
-topo_rev = list(reversed(list(nx.topological_sort(T_dir))))
-nodes_all = list(dhn.nodes())
 use_injection = SIZING_CASE != "central_only"
 
-Q_DESIGN = {n: 0.0 for n in nodes_all}
-for t in range(N_DAY):
-    D_n = {n: (WEEKLY_SHAPE[t] * Q_PEAK_W * HLF if n in sub_nodes else 0.0) for n in nodes_all}
-    I_n = {n: 0.0 for n in nodes_all}
-    if use_injection:
-        for n in sub_nodes:
-            if bid_of[n] in prosumer_src_set:
-                I_n[n] = PROSUMER_WEEKLY_Q[t]
-    net_down = {}
-    for n in topo_rev:
-        net_down[n] = D_n[n] - I_n[n] + sum(net_down[c] for c in T_dir.successors(n))
-    for n in nodes_all:
-        if T_dir.in_degree(n) == 1:
-            Q_DESIGN[n] = max(Q_DESIGN[n], abs(net_down[n]), D_n[n], I_n[n])
+SHAPE_DAY = np.array([WEEKLY_SHAPE[t] for t in range(N_DAY)], dtype=float)
+DEMAND    = {n: SHAPE_DAY * Q_PEAK_W * HLF for n in sub_nodes}
+INJECTION = ({n: np.array(PROSUMER_WEEKLY_Q[:N_DAY], dtype=float)
+              for n in sub_nodes if bid_of[n] in prosumer_src_set}
+             if use_injection else None)
 
-
-def q_design(child):
-    return Q_DESIGN[child]
-
+N1_ROWS = n1_design_flows(dhn, tnb.generator_nodes, DEMAND, INJECTION, q_min=Q_PEAK_W * HLF)
 
 N_dhn = dhn.number_of_nodes()
 E_dhn = dhn.number_of_edges()
 L_dhn = E_dhn - N_dhn + 1
-trunk_Q = max(q_design(c) for c in T_dir.nodes if T_dir.in_degree(c) == 1)
+trunk_Q = max(r[2] for r in N1_ROWS)
 print(f"\nDHN topology: N={N_dhn}, E={E_dhn}, L={L_dhn}, is_meshed={not nx.is_tree(dhn)}")
 print(f"Pipe sizing case: {SIZING_CASE}  (largest design flow {trunk_Q / 1e6:.2f} MW)")
 
 PIPE_SIZING, DESIGN_ROWS = {}, []
-for u, v in dhn.edges():
-    if T_dir.has_edge(u, v):
-        from_n, to_n, loop_edge = u, v, False
-        Q = q_design(v)
-    elif T_dir.has_edge(v, u):
-        from_n, to_n, loop_edge = v, u, False
-        Q = q_design(u)
-    else:  # loop-closing edge
-        from_n, to_n, loop_edge = u, v, True
-        cands = [q_design(x) for x in (u, v) if T_dir.in_degree(x) == 1]
-        Q = min(cands) if cands else Q_PEAK_W * HLF
-    Lp = round(dhn.edges[u, v].get("length", 0.0), 2)
+for from_n, to_n, Q, length, loop_edge in N1_ROWS:
+    Lp = round(length, 2)
     e = select_dn(GEN, Q)
     uid = node_id_map.get(from_n, str(from_n))
     vid = node_id_map.get(to_n, str(to_n))
@@ -464,6 +485,9 @@ print(f"  Q_tot  = {N_SUB * Q_PEAK_W / 1e6:.2f} MW  (heating mode, BASE)")
 
 # ---------------------------------------------------------------------------
 # SECTION 10 — CSV EXPORT
+# Function: writes nodes.csv (boundary conditions at the source, prosumers and consumers), pipes.csv
+# and pipe_design_flows.csv.
+# Call: runs at import; files are written to OUT_DIR.
 # ---------------------------------------------------------------------------
 print(f"\nExporting to: {OUT_DIR}")
 PROSUMER_PROFILE_FILE = "prosumer_production_profile.csv"  # written in Section 8
@@ -497,12 +521,14 @@ print(f"  pipes.csv  → {len(PIPE_SIZING)} rows")
 
 with open(os.path.join(OUT_DIR, "pipe_design_flows.csv"), "w", newline="") as f:
     w = csv.writer(f)
-    w.writerow(["pipe_id", "Q_design_W", "mdot_kgs", "velocity_ms", "DN_mm", "loop_closing"])
+    w.writerow(["pipe_id", "Q_design_W", "mdot_kgs", "velocity_ms", "DN_mm", "in_loop"])
     w.writerows(DESIGN_ROWS)
 print("  prosumer_profile_preview.png, pipe_design_flows.csv written")
 
 # ---------------------------------------------------------------------------
 # SECTION 11 — TOPOLOGY PLOT
+# Function: saves the topology plot (topology.png) with the prosumers highlighted.
+# Call: tnb.plot(dhn=dhn, ...) draws it, then circles are added on the prosumers.
 # ---------------------------------------------------------------------------
 tnb.plot(dhn=dhn, title="5G_M_M_BASE", show=False)
 
@@ -528,7 +554,9 @@ print(f"  topology.png → {plot_path}")
 print(f"\nDone → {OUT_DIR}")
 
 # ---------------------------------------------------------------------------
-# SECTION 9 — INCIDENCE MATRIX
+# SECTION 12 — INCIDENCE MATRIX
+# Function: writes the node-pipe incidence matrix (-1 at the starting node, +1 at the end node).
+# Call: built from PIPE_SIZING and node_rows; saved as incidence_matrix.csv.
 # ---------------------------------------------------------------------------
 
 node_ids  = [r[0] for r in node_rows]
@@ -544,4 +572,4 @@ with open(os.path.join(OUT_DIR, "incidence_matrix.csv"), "w", newline="") as f:
         w.writerow([node] + [-1 if u == i else (1 if v == i else 0)
                              for u, v in edge_ends])
 
-print(f"  incidence_matrix.csv → {len(node_ids)} x {len(edge_ids)}")
+print(f"  incidence_matrix.csv → {len(node_ids)} x {len(edge_ids)}")

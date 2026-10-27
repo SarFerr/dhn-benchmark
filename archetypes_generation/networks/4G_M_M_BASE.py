@@ -2,10 +2,18 @@
 #
 # Benchmark archetype: 4GDH, Meshed, Medium
 #
-# Methodology II — Algorithmic generation
-#   Step 1: Synthetic urban district
-#   Step 2: Street graph
-#   Step 3: Constrained Steiner tree beta=1.00
+# Description
+#   Builds the 4G_M_M network with Methodology II (algorithmic generation, methodology_II.py)
+#   on the same synthetic district as 3G_M_M (same seed, footprint and beta), with two heat
+#   sources: a primary source and a secondary waste-heat source. It sizes the pipes with the
+#   N-1 criterion, defines the schedule of the secondary source and exports the simulation-ready
+#   files. The same inputs and the same seed always give the same network.
+#
+# Procedure (Methodology II)
+#   Steps 1-2  District synthesis and building allocation   DistrictGenerator, StreetGraphBuilder
+#   Step 3     Network topology, constrained Steiner tree   ThermalNetworkBuilder (beta = 1.00, 2 sources)
+#   Step 4     Pipe sizing on the N-1 design flow           n1_design_flows, select_dn
+#   Export     nodes.csv, pipes.csv, src1_mdot_profile.csv, topology.png, incidence_matrix.csv
 #
 # Operating conditions (4GDH, mixed dispatch):
 #   Control    : (variable flow, constant temperature)
@@ -26,7 +34,7 @@
 #   Network-level control: VF-CT — src0 follows the demand at constant T,
 #   src1 injects a scheduled constant flow at constant T.
 #
-# Pipe sizing: as if src0 ALONE supplied the full peak demand (same rule as
+# Pipe sizing: as if src0 ALONE supplied the full peak demand (same N-1 rule as
 #   3G_M_M_BASE). src1 is non-dispatchable and OFF at weekends, so the worst
 #   case is src0-only; src1 is a point injection whose service pipe is sized
 #   on its own nominal mass flow.
@@ -36,13 +44,19 @@
 #   N_sources  : 2 (primary + 1 secondary)
 #   Q_peak_sub : 175 kW/substation (uniform, base scenario)
 #
-# Outputs:
-#   nodes.csv, pipes.csv, topology.png, src1_mdot_profile.csv
+# Outputs (archetypes_generation/archetypes/4G_M_M_BASE/):
+#   nodes.csv             - node table with boundary conditions
+#   pipes.csv             - pipe table with all modelling parameters
+#   src1_mdot_profile.csv - weekly mass-flow schedule of the secondary source
+#   topology.png          - network topology plot
+#   incidence_matrix.csv  - node-pipe incidence matrix
+#
+# Usage:
+#   python archetypes_generation/networks/4G_M_M_BASE.py
 
 import os
 import sys
 import csv
-import math
 import importlib
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -59,20 +73,13 @@ sys.path.insert(0, REPO_ROOT)
 import archetypes_generation.constants as co
 
 importlib.reload(co)
-from archetypes_generation.constants import (
-    GEN_OPERATING, PIPE_CATALOGUE,
-    LAMBDA_STEEL, LAMBDA_PUR, LAMBDA_HDPE, LAMBDA_SOIL,
-    ROUGHNESS_STEEL, BURIAL_DEPTH, H_EXT, T_GROUND,
-    RHO_STEEL, CP_STEEL,
-    RHO_PUR, CP_PUR,
-    RHO_HDPE, CP_HDPE,
-)
+from archetypes_generation.constants import GEN_OPERATING
 
 from archetypes_generation.demand_profile import (
-    Q_PEAK_W, DT_MIN, N_DAY, N_WEEK, DAYS, WEEKLY_SHAPE, F_STEADY, timestep_labels,
+    Q_PEAK_W, DT_MIN, N_DAY, N_WEEK, DAYS, F_STEADY, timestep_labels,
 )
 
-from archetypes_generation.pipe_system import select_dn, pipe_record, write_pipes_csv, PipeSizingError
+from archetypes_generation.pipe_system import select_dn, pipe_record, write_pipes_csv
 GEN = "4G"
 
 import archetypes_generation.networks.methodology_II as m2
@@ -81,13 +88,17 @@ from archetypes_generation.networks.methodology_II import (
     DistrictGenerator,
     StreetGraphBuilder,
     ThermalNetworkBuilder,
+    n1_design_flows,
 )
 
 # ---------------------------------------------------------------------------
 # SECTION 1 — DESIGN PARAMETERS
+# Function: all inputs of the archetype in one place (district, constrained Steiner factor,
+# 4GDH operating parameters from constants.GEN_OPERATING, peak load and heat-loss factor).
+# Call: edit the values here only; the following sections read them.
 # ---------------------------------------------------------------------------
 
-# District — identical to TG-3 for topology comparability
+# District — identical to 3G_M_M for topology comparability
 SEED = 42
 WIDTH, HEIGHT = 1200, 800
 ROWS, COLS = 5, 7
@@ -101,21 +112,13 @@ BETA = 1.00  # constrained Steiner flexibility factor
 
 # 4GDH operating parameters
 gp = GEN_OPERATING["4G"]
-RHO = gp["rho"]
 CP = gp["cp"]
 DELTA_T = gp["delta_T_nom"]         # 20 K
-V_MAX = gp["v_max"]
 T_SUPPLY_SRC0 = gp["T_supply_nom"]  # 60°C — primary source
 T_SUPPLY_SRC1 = 60.0                # 60°C — secondary source
 P_REF_BAR = gp["P_nom_bar"]         # 8 bar, reference pressure at src0
 
-Q_PEAK_W = Q_PEAK_W  # W per substation
 HLF = 1.10  # heat loss factor
-
-
-def unpack_pipe(vals):
-    # PIPE_CATALOGUE: (di, do, s, dc, sc)
-    return vals[0], vals[1], vals[2], vals[3], vals[4]
 
 
 print("=" * 60)
@@ -124,6 +127,9 @@ print("=" * 60)
 
 # ---------------------------------------------------------------------------
 # SECTION 2 — DISTRICT GENERATION
+# Function: Methodology II, Steps 1-2. DistrictGenerator creates the block grid and distributes
+# the substations on the block frontages, with the seed above.
+# Call: DistrictGenerator(...).generate() returns the district object.
 # ---------------------------------------------------------------------------
 print("\nStep 1 — District generation...")
 district = DistrictGenerator(
@@ -142,6 +148,9 @@ print(f"  Substations : {N_SUB}")
 
 # ---------------------------------------------------------------------------
 # SECTION 3 — STREET GRAPH
+# Function: StreetGraphBuilder turns the street centrelines of the district into the weighted
+# graph on which the network is routed.
+# Call: StreetGraphBuilder(district).build() returns the street graph.
 # ---------------------------------------------------------------------------
 print("\nStep 2 — Street graph...")
 street_graph = StreetGraphBuilder(district).build()
@@ -150,6 +159,10 @@ print(f"  Nodes: {street_graph.number_of_nodes()}, "
 
 # ---------------------------------------------------------------------------
 # SECTION 4 — NETWORK TOPOLOGY (constrained Steiner)
+# Function: Methodology II, Step 3. Places the two sources (src0 primary, src1 secondary) and grows
+# the network from them with the constrained Steiner algorithm.
+# Call: ThermalNetworkBuilder(..., generator_pos=[src0, src1]), build_routing_graph(),
+# constrained_steiner_tree(beta); metrics() prints N, E, L, alpha.
 # ---------------------------------------------------------------------------
 print(f"\nStep 3 — Constrained Steiner tree (β={BETA}, 2 sources)...")
 
@@ -177,12 +190,15 @@ tnb.build_routing_graph()
 dhn = tnb.constrained_steiner_tree(beta=BETA)
 
 m = tnb.metrics(dhn)
-print(f"\nTopological metrics:")
+print("\nTopological metrics:")
 for k, v in m.items():
     print(f"  {k:<15} {v}")
 
 # ---------------------------------------------------------------------------
 # SECTION 5 — NODE EXTRACTION
+# Function: converts the graph nodes into the node table (src0, src1, junctions, substations) and a
+# map graph node -> node id used in the pipe ids.
+# Call: loops over tnb.generator_nodes and dhn.nodes(); returns node_rows and node_id_map.
 # ---------------------------------------------------------------------------
 rou = tnb.rou
 node_id_map = {}
@@ -219,9 +235,13 @@ print(f"\nNodes: {len(node_rows)} "
 
 # ---------------------------------------------------------------------------
 # SECTION 6 — PIPE SIZING
+# Function: Methodology II, Step 4. Pipes are sized on the N-1 design flow of the network supplied by
+# src0 alone; the src1 service pipe is sized on the nominal flow of src1.
+# Call: n1_design_flows(dhn, [src0], loads) gives (from, to, Q, length, in_loop) per pipe; select_dn
+# picks the smallest DN with v <= v_max (Table 1); pipe_record builds the pipe row.
 # ---------------------------------------------------------------------------
 # The network is sized as if src0 alone supplied the whole peak demand
-# (same rule as 3G_M_M_BASE, for TG comparability). src1 is OFF at night and
+# (same rule as 3G_M_M_BASE, for comparability). src1 is OFF at night and
 # at weekends, so the hydraulic worst case (weekend morning peak) is
 # src0-only. src1 is connected as a point injection: its service pipe is
 # sized on the src1 nominal mass flow (Section 6bis).
@@ -234,9 +254,6 @@ SRC1_SUPPORT_FRAC = 0.15
 M_FLOW_NOM_SRC1   = round(SRC1_SUPPORT_FRAC * M_FLOW_BASE_LOAD, 3)
 Q_NOM_SRC1_W      = M_FLOW_NOM_SRC1 * CP * DELTA_T
 
-# Orient the network from src0 via BFS — used ONLY for downstream load.
-# All edges of dhn (including loop-closing edges) are sized.
-G_dir   = nx.DiGraph(nx.bfs_tree(dhn, src0_gnode))
 sub_set = set(tnb.building_nodes)
 
 N_dhn = dhn.number_of_nodes()
@@ -250,14 +267,12 @@ if dhn.degree(src1_gnode) != 1:
                        "(single service pipe); revise the src1 sizing rule.")
 
 
-def downstream_sub_count(node):
-    """Substations reachable downstream from node (BFS orientation from src0)."""
-    try:
-        desc = nx.descendants(G_dir, node) | {node}
-    except Exception:
-        desc = {node}
-    return sum(1 for n in desc if n in sub_set)
-
+# N-1 sizing (Methodology II, Step 4): maximum, over the intact network and over every
+# single-pipe outage, of the peak load of the substations downstream of the pipe
+N1_ROWS   = n1_design_flows(dhn, [src0_gnode], {n: Q_PEAK_W * HLF for n in sub_set},
+                            q_min=Q_PEAK_W * HLF)
+N1_Q      = {frozenset((a, b)): q      for a, b, q, _, _ in N1_ROWS}
+N1_ORIENT = {frozenset((a, b)): (a, b) for a, b, _, _, _ in N1_ROWS}   # BFS orientation from src0
 
 PIPE_SIZING = {}
 
@@ -269,14 +284,8 @@ for u, v in dhn.edges():
         to_n   = v if u == src1_gnode else u
         Q      = Q_NOM_SRC1_W
     else:
-        if G_dir.has_edge(u, v):
-            from_n, to_n = u, v
-        elif G_dir.has_edge(v, u):
-            from_n, to_n = v, u
-        else:
-            from_n, to_n = u, v
-        n_down = max(downstream_sub_count(to_n), 1)
-        Q = n_down * Q_PEAK_W * HLF
+        from_n, to_n = N1_ORIENT[frozenset((u, v))]
+        Q = N1_Q[frozenset((u, v))]
     data = dhn.edges[u, v]
     Lp = round(data.get("length", 0.0), 2)
     e = select_dn(GEN, Q)
@@ -292,11 +301,14 @@ print(f"  Q_tot  = {N_SUB * Q_PEAK_W / 1e6:.2f} MW")
 
 # ---------------------------------------------------------------------------
 # SECTION 6bis — SECONDARY SOURCE (src1) SIZING + DISPATCH-COUPLED PROFILE
+# Function: sizes the nominal flow of src1 (15 % of the base-load flow) and writes its weekly
+# schedule (ON Mon-Fri 07:00-20:00, OFF otherwise).
+# Call: runs at import; writes src1_mdot_profile.csv to OUT_DIR.
 # ---------------------------------------------------------------------------
 # The nominal flow delivered by src1 (M_FLOW_NOM_SRC1, computed in Section 6)
 # is 15% of the flow needed to cover the network base load (F_STEADY).
 
-print(f"\nSecondary source sizing (src1, industrial waste heat, base-load coupled):")
+print("\nSecondary source sizing (src1, industrial waste heat, base-load coupled):")
 print(f"  Total network capacity: {M_FLOW_NOM_TOTAL} kg/s")
 print(f"  Network base-load flow: {M_FLOW_BASE_LOAD} kg/s (F_STEADY={F_STEADY})")
 print(f"  Mass flow cap for src1 : {M_FLOW_NOM_SRC1} kg/s "
@@ -341,11 +353,13 @@ with open(os.path.join(OUT_DIR, SRC1_PROFILE_FILE), "w", newline="") as f:
         f_norm = round(SRC1_WEEKLY_MDOT[t] / M_FLOW_NOM_SRC1, 4) if M_FLOW_NOM_SRC1 > 0 else 0
         w.writerow([t, labels[t], f_norm, SRC1_WEEKLY_MDOT[t]])
 
-print(f"  {SRC1_PROFILE_FILE} → {N_WEEK} righe "
+print(f"  {SRC1_PROFILE_FILE} → {N_WEEK} rows "
       f"(peak {max(SRC1_WEEKLY_MDOT):.2f} kg/s, min {min(SRC1_WEEKLY_MDOT):.2f} kg/s)")
 
 # ---------------------------------------------------------------------------
 # SECTION 7 — CSV EXPORT
+# Function: writes nodes.csv (boundary conditions at the two sources and the substations) and pipes.csv.
+# Call: runs at import; files are written to OUT_DIR.
 # ---------------------------------------------------------------------------
 print(f"\nExporting to: {OUT_DIR}")
 
@@ -386,6 +400,8 @@ print(f"  pipes.csv  → {len(PIPE_SIZING)} rows")
 
 # ---------------------------------------------------------------------------
 # SECTION 8 — TOPOLOGY PLOT
+# Function: saves the topology plot (topology.png) of the generated network.
+# Call: tnb.plot(dhn=dhn, ...) draws it, then it is saved with matplotlib.
 # ---------------------------------------------------------------------------
 tnb.plot(dhn=dhn, title="4G_M_M_BASE", show=False)
 plot_path = os.path.join(OUT_DIR, "topology.png")
@@ -396,6 +412,8 @@ print(f"\nDone → {OUT_DIR}")
 
 # ---------------------------------------------------------------------------
 # SECTION 9 — INCIDENCE MATRIX
+# Function: writes the node-pipe incidence matrix (-1 at the starting node, +1 at the end node).
+# Call: built from PIPE_SIZING and node_rows; saved as incidence_matrix.csv.
 # ---------------------------------------------------------------------------
 
 node_ids  = [r[0] for r in node_rows]
@@ -411,4 +429,4 @@ with open(os.path.join(OUT_DIR, "incidence_matrix.csv"), "w", newline="") as f:
         w.writerow([node] + [-1 if u == i else (1 if v == i else 0)
                              for u, v in edge_ends])
 
-print(f"  incidence_matrix.csv → {len(node_ids)} x {len(edge_ids)}")
+print(f"  incidence_matrix.csv → {len(node_ids)} x {len(edge_ids)}")

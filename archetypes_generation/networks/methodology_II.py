@@ -16,20 +16,6 @@
 #   extract_nodes(tnb, dhn)                      node table and graph-node -> node-id map
 #   downstream_substations(tnb, dhn, source)     substations downstream of every pipe
 #
-# Example
-#   from archetypes_generation.networks.methodology_II import (
-#       DistrictGenerator, StreetGraphBuilder, ThermalNetworkBuilder,
-#       extract_nodes, downstream_substations)
-#
-#   district = DistrictGenerator(width=1200, height=800, rows=5, cols=7,
-#                                n_substations=100, seed=42).generate()
-#   streets  = StreetGraphBuilder(district).build()
-#   tnb      = ThermalNetworkBuilder(streets, district, generator_pos=(50, 40))
-#   tnb.build_routing_graph()
-#   dhn      = tnb.constrained_steiner_tree(beta=1.0)
-#   node_rows, node_id = extract_nodes(tnb, dhn)
-#   pipes    = downstream_substations(tnb, dhn)     # [(from, to, n_downstream, length), ...]
-#
 # Note: the random generator of DistrictGenerator is the global `random` module, seeded
 # with `seed` at construction, so that a given seed always gives the same district.
 #
@@ -790,27 +776,61 @@ def downstream_substations(tnb, dhn, source=None):
     return out
 
 
-# =====================================================================
-# EXAMPLE
-# =====================================================================
-if __name__ == "__main__":
+def n1_design_flows(dhn, sources, demand, injection=None, q_min=0.0):
+    """N-1 design flow of every pipe of a (possibly meshed) network.
+    Redundancy criterion: every pipe that belongs to a loop must be able to carry the load
+    when any other single pipe of the network is out of service. The design flow of a pipe is
+    the maximum, over the base case and over all single-pipe outages, of the flow it carries.
+    """
+    import numpy as np
 
-    # --- District ---
-    district = DistrictGenerator(
-        width=1200, height=800,
-        rows=5, cols=7,
-        street_width=15,
-        n_substations=100,
-        block_variation=0.25,
-        perturbation=7,
-        seed=42
-    )
-    district.generate()
-    district.plot_district()
+    nodes = list(dhn.nodes())
+    inj = injection or {}
+    T = 1
+    for d in (demand, inj):
+        for v in d.values():
+            T = max(T, np.size(v))
+    def vec(d):
+        return {n: np.broadcast_to(np.asarray(d.get(n, 0.0), dtype=float), (T,)) for n in nodes}
+    D, I = vec(demand), vec(inj)
+    zero = np.zeros(T)
 
-    streets = StreetGraphBuilder(district).build()
-    tnb = ThermalNetworkBuilder(streets, district, generator_pos=(50, 40))
-    tnb.build_routing_graph()
-    dhn = tnb.constrained_steiner_tree(beta=1.0)
-    print(tnb.metrics(dhn))
-    tnb.plot(dhn)
+    def design_flows(H):
+        """{(parent, child): max over time of the flow feeding child}, orientation of H."""
+        root = "__ROOT__"
+        G = nx.Graph(H)
+        for g in sources:
+            G.add_edge(root, g)
+        tree = nx.bfs_tree(G, root)
+        tree.remove_node(root)
+        net = {}
+        for n in reversed(list(nx.topological_sort(tree))):
+            net[n] = D[n] - I[n] + sum((net[c] for c in tree.successors(n)), zero)
+        out = {}
+        for p, c in tree.edges():
+            out[(p, c)] = float(np.max(np.maximum(np.abs(net[c]), np.maximum(D[c], I[c]))))
+        return out
+
+    base = design_flows(dhn)
+    key = lambda a, b: frozenset((a, b))
+    Q = {key(a, b): q for (a, b), q in base.items()}
+    orient = {key(a, b): (a, b) for (a, b) in base}
+    bridges = {key(a, b) for a, b in nx.bridges(nx.Graph(dhn))}
+    in_loop = {key(u, v): key(u, v) not in bridges for u, v in dhn.edges()}
+
+    for u, v in dhn.edges():
+        if key(u, v) in bridges:
+            continue
+        H = nx.Graph(dhn)
+        H.remove_edge(u, v)
+        for (a, b), q in design_flows(H).items():
+            k = key(a, b)
+            if q > Q.get(k, 0.0):
+                Q[k] = q
+
+    rows = []
+    for u, v in dhn.edges():
+        k = key(u, v)
+        a, b = orient.get(k, (u, v))
+        rows.append((a, b, max(Q.get(k, 0.0), q_min), dhn.edges[u, v].get("length", 0.0), in_loop[k]))
+    return rows

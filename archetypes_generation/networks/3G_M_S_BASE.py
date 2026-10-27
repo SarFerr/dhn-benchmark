@@ -2,10 +2,17 @@
 #
 # Benchmark archetype: 3GDH, Meshed, Small
 #
-# Methodology I — Purpose-driven design (methodology_I.py, build_from_coordinates)
+# Description
+#   Builds the 3G_M_S network, the meshed network (ring plus three straight chords, L = 6), with Methodology I
+#   (purpose-driven design, methodology_I.py): the layout of a 500 m x 500 m district with 10
+#   substations is prescribed, the pipes are sized on design loads and the simulation-ready
+#   files are exported. The three THV archetypes (3G_R_S, 3G_L_S, 3G_M_S) share the same radial
+#   base and differ only in the topological template. The result is fully deterministic.
+#
+# Procedure (Methodology I, build_from_coordinates)
 #   Rule 1: exactly 10 substations in a 500 m x 500 m footprint, source in the north-west
 #           corner; node coordinates prescribed, pipe length = euclidean distance
-#   Rule 2: nested topologies on a common radial base — meshed: ring + 3 orthogonal chords from a, d, h (L = 6)
+#   Rule 2: topological template, nested on a common radial base — meshed: ring + 3 orthogonal chords from a, d, h (L = 6)
 #   Rule 3: pipe sizing — "tree" design loads (design_loads) and DN with v <= V_LIM = 1.5 m/s
 #
 # Outputs (archetypes_generation/archetypes/3G_M_S_BASE/):
@@ -47,12 +54,16 @@ from archetypes_generation.constants import GEN_OPERATING
 from archetypes_generation.demand_profile import Q_PEAK_W
 from archetypes_generation.plotting import plot_topology
 from archetypes_generation.pipe_system import select_dn, pipe_record, write_pipes_csv
-from archetypes_generation.networks.methodology_I import build_from_coordinates, design_loads, E, W, S, N
+from archetypes_generation.networks.methodology_I import build_from_coordinates, design_loads, E, S, N
 
 GEN      = "3G"
 
 # ---------------------------------------------------------------------------
 # SECTION 1 — LAYOUT
+# Function: prescribes the layout (node coordinates, radial base) and builds the network with the
+# nesting rule of Methodology I; pipe length = euclidean distance between the end nodes.
+# Call: build_from_coordinates(EDGE_LIST, POSITIONS, topology=..., [ring_closure, chords])
+# returns NET (nodes, edges, lengths, added pipes) and checks the expected number of loops.
 # Common radial base of the three THV archetypes (3G_R_S, 3G_L_S, 3G_M_S): two feeders along
 # the perimeter of a 500 m x 500 m square, source at the north-west corner.
 # Coordinates in metres, origin at the source, x to the east, y to the SOUTH.
@@ -96,6 +107,8 @@ for (u, v), l in PIPE_L.items():
 
 # ---------------------------------------------------------------------------
 # SECTION 2 — TOPOLOGY CHECKS (connectivity and L are also checked in build_from_coordinates)
+# Function: sanity checks on the built network (number of loops, one source, 10 substations).
+# Call: plain asserts; the script stops if the topology is not the intended one.
 # ---------------------------------------------------------------------------
 N_ = len(NODES)
 E_ = len(EDGES)
@@ -109,6 +122,8 @@ print(f"\nTopology OK — N={N_}, E={E_}, L={L}")
 
 # ---------------------------------------------------------------------------
 # SECTION 3 — TOPOLOGY KPIs
+# Function: computes the topological descriptors (N, E, L, alpha, degrees, diameter, total length).
+# Call: KPIS dict, printed for reference; the values go into Table A2 of the paper.
 # ---------------------------------------------------------------------------
 G_nx = nx.Graph()
 G_nx.add_nodes_from([n[0] for n in NODES])
@@ -146,6 +161,9 @@ for k, v in KPIS.items():
 
 # ---------------------------------------------------------------------------
 # SECTION 4 — PIPE SIZING
+# Function: assigns a design load to every pipe and selects its diameter.
+# Call: design_loads(NET, ...) gives the load of each pipe, select_dn(...) the smallest DN with
+# v <= V_LIM, pipe_record(...) builds the pipe row stored in PIPE_SIZING.
 # "tree" design loads (design_loads): every pipe of the radial base carries the load of the
 # substations downstream of it (pieces of a pipe split by a chord inherit it); the closing pipe
 # and the chords are sized on ADDED_SUBS substations. DN = smallest catalogue size with
@@ -188,6 +206,8 @@ print(f"  Q_peak_tot = {n_sub * Q_PEAK_W / 1e6:.2f} MW    target: < 5 MW {'✓' 
 
 # ---------------------------------------------------------------------------
 # SECTION 5 — CSV EXPORT
+# Function: writes nodes.csv (boundary conditions at source and substations) and pipes.csv.
+# Call: runs at import; files are written to OUT_DIR.
 # ---------------------------------------------------------------------------
 print(f"\nExporting to: {OUT_DIR}")
 
@@ -219,6 +239,8 @@ print(f"  pipes.csv    → {len(PIPE_SIZING)} rows, "
 
 # ---------------------------------------------------------------------------
 # SECTION 6 — TOPOLOGY PLOT
+# Function: saves the topology plot (topology.png).
+# Call: plot_topology(NODES, EDGES, ...) from plotting.py.
 # ---------------------------------------------------------------------------
 fig, ax = plot_topology(
     NODES, EDGES,
@@ -232,6 +254,8 @@ print(f"  topology.png → {plot_path}")
 
 # ---------------------------------------------------------------------------
 # SECTION 7 — INCIDENCE MATRIX
+# Function: writes the node-pipe incidence matrix (-1 at the starting node, +1 at the end node).
+# Call: built from NODES and EDGES; saved as incidence_matrix.csv.
 # ---------------------------------------------------------------------------
 node_ids = [n[0] for n in NODES]
 edge_ids = [f"{u}_{v}" for u, v in EDGES]
