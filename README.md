@@ -1,5 +1,7 @@
 # Synthetic Benchmark Networks for District Heating Systems: A Systematic Review and Standardisation Framework
 
+[![DOI](https://zenodo.org/badge/1263852696.svg)](https://doi.org/10.5281/zenodo.23922473)
+
 **`dhn-benchmark`: a reproducible set of seven synthetic district heating network archetypes for validating and comparing thermo-hydraulic simulation tools.**
 
 This repository is the companion code and data of the paper
@@ -279,7 +281,15 @@ The pydhn notebooks are a complete, commented example of these steps. Acceptabil
 
 ## Citation
 
-If you use these data, please cite the paper (full reference available upon publication).
+If you use these data, please cite the dataset and the paper.
+
+**Dataset** (Zenodo; the DOI below always resolves to the latest version):
+
+> S. Ferrero, D. S. Schiera, F. D. Minuto, and A. Lanzini, *dhn-benchmark: Synthetic benchmark networks for district heating systems*, Zenodo, 2026. [https://doi.org/10.5281/zenodo.23922473](https://doi.org/10.5281/zenodo.23922473)
+
+**Paper** (full reference available upon publication):
+
+> *Synthetic Benchmark Networks for District Heating Systems: A Systematic Review and Standardisation Framework* (in preparation).
 
 ## License
 
