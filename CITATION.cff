@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use this dataset, please cite it as below."
+type: dataset
+title: "dhn-benchmark: Synthetic benchmark networks for district heating systems"
+abstract: >-
+  Seven synthetic district heating network archetypes (3G_R_S, 3G_L_S, 3G_M_S,
+  3G_M_M, 4G_M_M, 5G_M_M, 3G_M_L) for validating and comparing thermo-hydraulic
+  simulation tools, with the generation scripts (Methodology I and II) and the
+  pyDHN reference results. Companion repository of the paper "Synthetic Benchmark
+  Networks for District Heating Systems: A Systematic Review and Standardisation
+  Framework".
+authors:
+  - family-names: Ferrero
+    given-names: Sara
+  - family-names: Schiera
+    given-names: Daniele Salvatore
+  - family-names: Minuto
+    given-names: Francesco Demetrio
+  - family-names: Lanzini
+    given-names: Andrea
+version: v1.0.0
+date-released: 2026-11-03
+doi: 10.5281/zenodo.23922473
+repository-code: "https://github.com/SarFerr/dhn-benchmark"
+license: GPL-3.0-only
+keywords:
+  - district heating
+  - benchmark
+  - synthetic networks
+  - thermo-hydraulic simulation
