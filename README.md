@@ -279,7 +279,7 @@ The pydhn notebooks are a complete, commented example of these steps. Acceptabil
 
 ## Citation
 
-If you use these networks, please cite the paper (full reference available upon publication).
+If you use these data, please cite the paper (full reference available upon publication).
 
 ## License
 
