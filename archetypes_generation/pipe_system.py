@@ -1,9 +1,5 @@
 # pipe_system.py
 #
-# Single source of truth for pipe material, catalogue, sizing and heat-loss
-# coefficients of every benchmark archetype. All generation scripts import
-# from here, so that no material property is copy-pasted between scripts.
-#
 #   3G, 4G : carbon steel carrier, rigid PUR insulation, HDPE casing (EN 253)
 #   5G     : PE100 carrier, non-insulated, direct burial (ground = thermal buffer)
 #

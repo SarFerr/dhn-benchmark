@@ -1,16 +1,14 @@
 # demand_profile.py
 #
 # Normalised heat demand profile for a single DHN substation.
-# Resolution: 10 minutes (6 points per hour).
-# Same profile applied uniformly to all substations in all archetypes.
+# Resolution: 10 minutes.
 #
 # Profile structure.
 #   - Morning peak:   amplitude 1.00 at 07:00
-#   - Rise transient: switch-on (06:00) → peak (07:00), ~60 min
-#   - Decay transient: peak (07:00) → steady state, ~60 min
-#   - Steady state:   f = 0.35, from ~08:00 to 22:00
+#   - Rise transient: switch-on (06:00) → peak (07:00), 60 min
+#   - Decay transient: peak (07:00) → steady state, 60 min
+#   - Steady state:   f = 0.35, from 08:00 to 22:00
 #   - Overnight shutdown: f = 0.00, from 22:00 to 06:00
-#   - Same profile applied uniformly all 7 days
 #
 # Usage:
 #   from archetypes_generation.demand_profile import DAILY_SHAPE, WEEKLY_SHAPE, DT_MIN, N_DAY, N_WEEK

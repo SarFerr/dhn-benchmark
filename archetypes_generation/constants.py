@@ -2,11 +2,6 @@
 #
 # Physical and engineering parameters for benchmark DHN networks.
 #
-# Reference standards:
-# - EN 10220:2002 — Steel carrier pipe dimensions
-# - EN 253:2019 — Pre-insulated pipes for underground district heating
-# - EN 13941:2019 — Design and installation of pre-insulated pipes
-#
 # ---------------------------------------------------------------------------
 # 1. WATER — heat transfer fluid
 # ---------------------------------------------------------------------------

@@ -1,26 +1,14 @@
 # plotting.py
 #
-# Standard plot of DHN benchmark network topologies (topology.png of every archetype).
-# Same style as the network layouts saved by results/archetype_results.ipynb (LAYOUT_STYLE):
-# black pipes, blue square source, light-blue substations, magenta prosumers, black junctions.
-#
 # Usage:
 #   from archetypes_generation.plotting import plot_topology
 #   plot_topology(NODES, EDGES, title)
-#
-# Coordinates: Methodology I files have y pointing down (flip_y=True, default);
-# Methodology II files have y pointing up (flip_y=False).
-# Fonts come from matplotlib rcParams (no fontsize is set here).
 
-import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 
 # ---------------------------------------------------------------------------
-# Visual parameters — identical to LAYOUT_STYLE in archetype_results.ipynb
-# Marker sizes [pt²] and line widths [pt] refer to the width at which the layouts are shown in
-# the paper (DISPLAY_W_IN) and are scaled with the figure width, so that topology.png and the
-# results layouts look the same at any size.
+# Visual parameters
 # ---------------------------------------------------------------------------
 LAYOUT_STYLE = {
     "pipe":       "black",
