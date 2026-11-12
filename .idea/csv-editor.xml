@@ -38,13 +38,6 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="\prisma_method\PRISMA2020_data.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
       </map>
     </option>
   </component>
